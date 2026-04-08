@@ -101,7 +101,7 @@ describe('runCli (action handler)', () => {
   it('logs the resolved project name, template, and package manager when all flags are provided', async () => {
     const { driver, selectCallCount } = makeRecordingDriver();
 
-    await runCli('my-project', { template: 'monolith', pm: 'pnpm' }, driver);
+    await runCli('my-project', { template: 'monolith', pm: 'pnpm' }, driver, { interactive: true });
 
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
     expect(output).toContain('my-project');
@@ -114,7 +114,7 @@ describe('runCli (action handler)', () => {
   it('prompts for missing template and package manager when no flags are provided', async () => {
     const { driver, selectCallCount } = makeRecordingDriver(['web', 'npm']);
 
-    await runCli('minimal-project', {}, driver);
+    await runCli('minimal-project', {}, driver, { interactive: true });
 
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
     expect(output).toContain('minimal-project');
@@ -128,11 +128,29 @@ describe('runCli (action handler)', () => {
     // sanitized to undefined and the prompts shown.
     const { driver, selectCallCount } = makeRecordingDriver(['mobile', 'yarn']);
 
-    await runCli('my-project', { template: 'react', pm: 'bun' }, driver);
+    await runCli('my-project', { template: 'react', pm: 'bun' }, driver, { interactive: true });
 
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
     expect(output).toContain('mobile');
     expect(output).toContain('yarn');
     expect(selectCallCount.count).toBe(2);
+  });
+
+  it('exits with code 1 when stdin is non-interactive and required flags are missing', async () => {
+    const { driver } = makeRecordingDriver();
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+
+    try {
+      await expect(
+        runCli('my-project', {}, driver, { interactive: false }),
+      ).rejects.toThrow('process.exit:1');
+      expect(errSpy).toHaveBeenCalled();
+    } finally {
+      exitSpy.mockRestore();
+      errSpy.mockRestore();
+    }
   });
 });

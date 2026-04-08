@@ -10,7 +10,13 @@
 import { Command } from 'commander';
 
 import pkg from '../package.json' with { type: 'json' };
-import { buildPartialInputs, defaultPromptDriver, gatherInputs } from './prompts.ts';
+import {
+  buildPartialInputs,
+  defaultPromptDriver,
+  gatherInputs,
+  NonInteractiveStdinError,
+  PromptCancelledError,
+} from './prompts.ts';
 import type { PromptDriver } from './prompts.ts';
 
 export type TemplateName = 'web' | 'mobile' | 'monolith';
@@ -60,9 +66,25 @@ export async function runCli(
   projectName: string,
   options: CliOptions,
   driver: PromptDriver = defaultPromptDriver,
+  gatherOptions: { interactive?: boolean } = {},
 ): Promise<void> {
   const partial = buildPartialInputs(projectName, options.template, options.pm);
-  const resolved = await gatherInputs(partial, driver);
+
+  let resolved;
+  try {
+    resolved = await gatherInputs(partial, driver, gatherOptions);
+  } catch (err) {
+    if (err instanceof PromptCancelledError) {
+      // User hit Ctrl+C during a prompt. Exit cleanly without a stack trace.
+      console.error('Aborted.');
+      process.exit(130); // 128 + SIGINT(2), conventional for Ctrl+C cancellation.
+    }
+    if (err instanceof NonInteractiveStdinError) {
+      console.error('Error: %s', err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
 
   console.log('[create-rell-app] resolved configuration:');
   console.log('  project name : %s', resolved.projectName);

@@ -19,6 +19,41 @@ import { input, select } from '@inquirer/prompts';
 import type { PackageManagerName, TemplateName } from './index.ts';
 
 /**
+ * Detect a Ctrl+C cancellation thrown by @inquirer/prompts. The error class
+ * lives in @inquirer/core (a transitive dep), so we identify it by name to
+ * avoid taking on a second direct dependency.
+ */
+function isInquirerExitError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'ExitPromptError';
+}
+
+/**
+ * Thrown when the developer cancels an interactive prompt (e.g. Ctrl+C).
+ * The CLI top-level catches this and exits with a non-zero status without
+ * printing a stack trace.
+ */
+export class PromptCancelledError extends Error {
+  constructor() {
+    super('Prompt cancelled by user.');
+    this.name = 'PromptCancelledError';
+  }
+}
+
+/**
+ * Thrown when interactive prompts are required but stdin is not a TTY
+ * (e.g. piped input in CI). Tells the developer to use flags instead.
+ */
+export class NonInteractiveStdinError extends Error {
+  constructor(missing: ReadonlyArray<string>) {
+    super(
+      `Interactive prompts require a TTY but stdin is not interactive. ` +
+        `Pass the missing values via flags: ${missing.join(', ')}.`,
+    );
+    this.name = 'NonInteractiveStdinError';
+  }
+}
+
+/**
  * Choices shown in the template selection prompt. Single source of truth for
  * the (label, value) pairs and the set of valid template names.
  */
@@ -102,22 +137,40 @@ export interface PromptDriver {
  * on the inquirer package directly.
  */
 export const defaultPromptDriver: PromptDriver = {
-  text({ message, default: defaultValue }) {
-    return input({ message, default: defaultValue });
+  async text({ message, default: defaultValue }) {
+    try {
+      return await input({ message, default: defaultValue });
+    } catch (err) {
+      if (isInquirerExitError(err)) throw new PromptCancelledError();
+      throw err;
+    }
   },
-  select({ message, choices }) {
+  async select({ message, choices }) {
     // @inquirer/prompts types `choices` as a mutable array. Cloning a copy
     // here keeps our public PromptDriver interface readonly without forcing
-    // a cast on every call site.
-    return select({
-      message,
-      choices: choices.map((c) => ({ name: c.name, value: c.value, description: c.description })),
-    });
+    // a cast on every call site. We also strip undefined `description`
+    // entries so the prompt UI doesn't render an empty hint line.
+    const mapped = choices.map((c) =>
+      c.description === undefined
+        ? { name: c.name, value: c.value }
+        : { name: c.name, value: c.value, description: c.description },
+    );
+    try {
+      return await select({ message, choices: mapped });
+    } catch (err) {
+      if (isInquirerExitError(err)) throw new PromptCancelledError();
+      throw err;
+    }
   },
 };
 
 /**
  * Type guard: is `value` one of the known TemplateName literals?
+ *
+ * The `as TemplateName` cast inside `Set.has()` is a safe assertion: we are
+ * checking membership in a set whose element type is the literal union, and
+ * the cast is contained inside the type guard. The return type narrows for
+ * callers.
  */
 function isTemplateName(value: string | undefined): value is TemplateName {
   return value !== undefined && TEMPLATE_VALUES.has(value as TemplateName);
@@ -125,9 +178,18 @@ function isTemplateName(value: string | undefined): value is TemplateName {
 
 /**
  * Type guard: is `value` one of the known PackageManagerName literals?
+ * Same caveat as `isTemplateName` — the cast inside `Set.has()` is contained.
  */
 function isPackageManagerName(value: string | undefined): value is PackageManagerName {
   return value !== undefined && PACKAGE_MANAGER_VALUES.has(value as PackageManagerName);
+}
+
+/**
+ * Detect whether interactive prompts are usable. Returns false in CI / piped
+ * environments where `@inquirer/prompts` would hang waiting for input.
+ */
+export function isStdinInteractive(): boolean {
+  return Boolean(process.stdin.isTTY);
 }
 
 /**
@@ -159,9 +221,28 @@ export function buildPartialInputs(
 export async function gatherInputs(
   initial: PartialInputs,
   driver: PromptDriver = defaultPromptDriver,
+  options: { interactive?: boolean } = {},
 ): Promise<ResolvedInputs> {
-  // Project name: always confirm. The positional arg is the default so a
-  // happy-path user just hits Enter.
+  // If stdin is not a TTY (CI, piped input), we cannot interactively prompt.
+  // Default to the real TTY check, but allow tests/callers to override.
+  const interactive = options.interactive ?? isStdinInteractive();
+
+  if (!interactive) {
+    const missing: string[] = [];
+    if (initial.template === undefined) missing.push('--template');
+    if (initial.pm === undefined) missing.push('--pm');
+    if (missing.length > 0) throw new NonInteractiveStdinError(missing);
+
+    // Fully specified via flags — no prompts needed even in non-TTY mode.
+    return {
+      projectName: initial.projectName,
+      template: initial.template as TemplateName,
+      pm: initial.pm as PackageManagerName,
+    };
+  }
+
+  // Project name: always confirm in interactive mode. The positional arg is
+  // the default so a happy-path user just hits Enter.
   const projectName = await driver.text({
     message: 'Project name',
     default: initial.projectName,

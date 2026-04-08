@@ -1,6 +1,6 @@
 # Story 1.2: Add Interactive Prompts for Template and Package Manager Selection
 
-Status: review
+Status: done
 
 ## Story
 
@@ -159,5 +159,21 @@ claude-opus-4-6 (1M context)
 **Modified (3):**
 
 - `package.json` — added `@inquirer/prompts@8.4.1` to `dependencies`
-- `src/index.ts` — `runCli()` now calls `gatherInputs()` and accepts an optional `PromptDriver`
-- `tests/unit/cli.test.ts` — replaced placeholder runCli tests with three new tests covering full-flag, no-flag, and invalid-flag re-prompt paths
+- `src/index.ts` — `runCli()` now calls `gatherInputs()`, accepts optional `PromptDriver` + `gatherOptions`, and handles `PromptCancelledError` (exit 130) and `NonInteractiveStdinError` (exit 1)
+- `tests/unit/cli.test.ts` — replaced placeholder runCli tests with four tests covering full-flag, no-flag, invalid-flag re-prompt, and non-TTY error paths
+
+### Code Review Findings (Phase 3)
+
+**HIGH (auto-fixed):**
+
+- **Ctrl+C handling**: `@inquirer/prompts` throws `ExitPromptError` (from `@inquirer/core`) on user cancel. Without handling, it surfaced as an ugly stack trace. Added `PromptCancelledError`, name-based detection (avoids second direct dep), and clean exit-130 path in `runCli`.
+- **Non-TTY hang**: `@inquirer/prompts` would hang on piped stdin in CI. Added `isStdinInteractive()` check + `NonInteractiveStdinError` with helpful "pass these flags" message + exit 1. Tests cover both the all-flags-provided non-interactive happy path and the missing-flag error path.
+
+**MEDIUM (auto-fixed):**
+
+- **Empty `description` field rendered as empty hint line**: `defaultPromptDriver.select` now omits the `description` key entirely when undefined, instead of passing `description: undefined`.
+- **Type guard cast comment**: Added explanatory comment on the `as TemplateName` cast inside `Set.has()` clarifying it is a contained, safe assertion.
+
+**LOW (deferred):** see `deferred-findings.md` (`LOW-1.2-A`, `LOW-1.2-B`).
+
+**CRITICAL:** none.

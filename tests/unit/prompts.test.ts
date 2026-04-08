@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPartialInputs,
   gatherInputs,
+  isStdinInteractive,
+  NonInteractiveStdinError,
   PACKAGE_MANAGER_CHOICES,
   TEMPLATE_CHOICES,
 } from '../../src/prompts.ts';
@@ -100,6 +102,7 @@ describe('gatherInputs', () => {
     const resolved = await gatherInputs(
       { projectName: 'my-app', template: undefined, pm: undefined },
       driver,
+      { interactive: true },
     );
 
     expect(calls.text).toHaveLength(1);
@@ -113,6 +116,7 @@ describe('gatherInputs', () => {
     const resolved = await gatherInputs(
       { projectName: 'my-app', template: 'web', pm: undefined },
       driver,
+      { interactive: true },
     );
 
     expect(calls.select).toHaveLength(1);
@@ -129,6 +133,7 @@ describe('gatherInputs', () => {
     const resolved = await gatherInputs(
       { projectName: 'my-app', template: undefined, pm: 'pnpm' },
       driver,
+      { interactive: true },
     );
 
     expect(calls.select).toHaveLength(1);
@@ -143,6 +148,7 @@ describe('gatherInputs', () => {
     const resolved = await gatherInputs(
       { projectName: 'my-app', template: 'web', pm: 'pnpm' },
       driver,
+      { interactive: true },
     );
 
     expect(calls.select).toHaveLength(0);
@@ -160,6 +166,7 @@ describe('gatherInputs', () => {
     const resolved = await gatherInputs(
       { projectName: 'my-app', template: undefined, pm: undefined },
       driver,
+      { interactive: true },
     );
 
     expect(resolved.projectName).toBe('renamed-app');
@@ -171,11 +178,60 @@ describe('gatherInputs', () => {
     const resolved = await gatherInputs(
       { projectName: 'my-app', template: undefined, pm: undefined },
       driver,
+      { interactive: true },
     );
 
     const expectedTemplate: TemplateName = 'mobile';
     const expectedPm: PackageManagerName = 'yarn';
     expect(resolved.template).toBe(expectedTemplate);
     expect(resolved.pm).toBe(expectedPm);
+  });
+
+  it('throws NonInteractiveStdinError when stdin is not a TTY and flags are missing', async () => {
+    const { driver, calls } = makeFakeDriver();
+
+    await expect(
+      gatherInputs(
+        { projectName: 'my-app', template: undefined, pm: undefined },
+        driver,
+        { interactive: false },
+      ),
+    ).rejects.toBeInstanceOf(NonInteractiveStdinError);
+
+    // Confirm no prompts were attempted in non-interactive mode.
+    expect(calls.text).toHaveLength(0);
+    expect(calls.select).toHaveLength(0);
+  });
+
+  it('lists only the missing flags in NonInteractiveStdinError', async () => {
+    const { driver } = makeFakeDriver();
+
+    await expect(
+      gatherInputs(
+        { projectName: 'my-app', template: 'web', pm: undefined },
+        driver,
+        { interactive: false },
+      ),
+    ).rejects.toThrow(/--pm/);
+  });
+
+  it('returns inputs without prompting when stdin is non-interactive and all flags are provided', async () => {
+    const { driver, calls } = makeFakeDriver();
+
+    const resolved = await gatherInputs(
+      { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+      driver,
+      { interactive: false },
+    );
+
+    expect(resolved).toEqual({ projectName: 'my-app', template: 'web', pm: 'pnpm' });
+    expect(calls.text).toHaveLength(0);
+    expect(calls.select).toHaveLength(0);
+  });
+});
+
+describe('isStdinInteractive', () => {
+  it('returns a boolean reflecting process.stdin.isTTY', () => {
+    expect(typeof isStdinInteractive()).toBe('boolean');
   });
 });
