@@ -31,12 +31,20 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/app/error.tsx',
   'web/app/loading.tsx',
   'web/app/globals.css',
+  // Story 2.2 additions
+  'web/lib/env.ts',
+  'web/lib/supabase/client.ts',
+  'web/lib/supabase/server.ts',
   'mobile/package.json',
   'mobile/app.json',
   'mobile/babel.config.js',
   'mobile/tsconfig.json',
   'mobile/app/_layout.tsx',
   'mobile/app/index.tsx',
+  // Story 2.2 additions
+  'mobile/lib/env.ts',
+  'mobile/lib/token-cache.ts',
+  'mobile/lib/supabase/client.ts',
   'shared/package.json',
   'shared/tsconfig.json',
   'shared/index.ts',
@@ -134,6 +142,138 @@ describe('templates/monolith static file shape', () => {
     expect(text).toContain('web/');
     expect(text).toContain('mobile/');
     expect(text).toContain('shared/');
+  });
+});
+
+// === Story 2.2 — Clerk + Supabase native 3P auth assertions ===
+
+describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
+  it('web root layout imports ClerkProvider from @clerk/nextjs and wraps children', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'app', 'layout.tsx'), 'utf8');
+    expect(text).toContain("import { ClerkProvider } from '@clerk/nextjs'");
+    expect(text).toContain('<ClerkProvider>');
+    expect(text).toContain('{children}');
+  });
+
+  it('web Supabase client uses the accessToken callback (native 3P auth)', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'supabase', 'client.ts'), 'utf8');
+    expect(text).toContain("from '@supabase/supabase-js'");
+    expect(text).toContain("from '@clerk/nextjs'");
+    expect(text).toContain('accessToken');
+    expect(text).toContain('useSession');
+    expect(text).toContain('getToken');
+  });
+
+  it('web server Supabase client uses auth() from @clerk/nextjs/server', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'supabase', 'server.ts'), 'utf8');
+    expect(text).toContain("from '@clerk/nextjs/server'");
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain('accessToken');
+  });
+
+  it('mobile root layout imports ClerkProvider from @clerk/clerk-expo', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '_layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from '@clerk/clerk-expo'");
+    expect(text).toContain('<ClerkProvider');
+    expect(text).toContain('tokenCache');
+  });
+
+  it('mobile Supabase client uses the accessToken callback', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'lib', 'supabase', 'client.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from '@supabase/supabase-js'");
+    expect(text).toContain("from '@clerk/clerk-expo'");
+    expect(text).toContain('accessToken');
+    expect(text).toContain('useAuth');
+  });
+
+  it('mobile tokenCache is backed by expo-secure-store', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'token-cache.ts'), 'utf8');
+    expect(text).toContain("from 'expo-secure-store'");
+    expect(text).toContain('getToken');
+    expect(text).toContain('saveToken');
+  });
+
+  it('web/lib/env.ts validates all required clerk + supabase keys', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
+    expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
+    expect(text).toContain('CLERK_SECRET_KEY');
+    expect(text).toContain('NEXT_PUBLIC_SUPABASE_URL');
+    expect(text).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  });
+
+  it('mobile/lib/env.ts validates all required EXPO_PUBLIC keys', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'env.ts'), 'utf8');
+    expect(text).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY');
+    expect(text).toContain('EXPO_PUBLIC_SUPABASE_URL');
+    expect(text).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  });
+
+  it('_env.example documents every required key', async () => {
+    const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
+    const requiredKeys = [
+      'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+      'CLERK_SECRET_KEY',
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
+      'EXPO_PUBLIC_SUPABASE_URL',
+      'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+    ];
+    for (const key of requiredKeys) {
+      expect(text).toContain(key);
+    }
+  });
+
+  it('web package.json pins @clerk/nextjs and @supabase/supabase-js', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['@clerk/nextjs']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['@supabase/supabase-js']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('mobile package.json pins @clerk/clerk-expo, @supabase/supabase-js, expo-secure-store', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['@clerk/clerk-expo']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['@supabase/supabase-js']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['expo-secure-store']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
+    const filesToCheck: string[] = [];
+    async function walk(dir: string): Promise<void> {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const childPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(childPath);
+        } else if (entry.isFile()) {
+          filesToCheck.push(childPath);
+        }
+      }
+    }
+    await walk(MONOLITH_DIR);
+
+    const offenders: string[] = [];
+    const deprecatedPatterns = [
+      /template:\s*['"]supabase['"]/,
+      /getToken\s*\(\s*\{\s*template:/,
+    ];
+    for (const file of filesToCheck) {
+      const text = await readFile(file, 'utf8');
+      for (const pattern of deprecatedPatterns) {
+        if (pattern.test(text)) {
+          offenders.push(`${file}: matched ${pattern}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
 

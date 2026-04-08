@@ -57,5 +57,5 @@ Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewo
 
 ## Notes
 
-- Auth integration uses Clerk's **native** Supabase third-party auth. Do **not** use the deprecated `getToken({ template: 'supabase' })` pattern.
+- Auth integration uses Clerk's **native** Supabase third-party auth. Do **not** use the deprecated JWT-template pattern (passing a template name to Clerk's `getToken` call) — that integration path was phased out in April 2025.
 - Dependencies are pinned to exact versions — update them in groups (`web/package.json`, `mobile/package.json`, `shared/package.json`) rather than running floating-range updates.
