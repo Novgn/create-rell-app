@@ -79,6 +79,12 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/app/api/me/role/route.ts',
   'mobile/lib/auth/use-role.ts',
   'shared/db/migrations/0001_rbac_helpers.sql',
+  // Story 3.4 additions
+  'web/components/auth/RoleGate.tsx',
+  'web/components/auth/PaywallPrompt.tsx',
+  'web/app/dashboard/paid-feature/page.tsx',
+  'mobile/components/auth/RoleGate.tsx',
+  'mobile/components/auth/PaywallPrompt.tsx',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -737,6 +743,87 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('public.is_super_admin()');
     expect(text).toContain('FOR SELECT');
     expect(text).toContain('TO authenticated');
+  });
+
+  // === Story 3.4 — Paywall + RoleGate ===
+
+  it('web RoleGate is a client component using useRole + hierarchy check', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("'use client'");
+    expect(text).toContain('useRole');
+    expect(text).toContain('hasRequiredRole');
+    expect(text).toContain('HIERARCHY');
+    // Super admin > paid > free ordering
+    expect(text).toMatch(/'free'[\s\S]*'paid'[\s\S]*'super_admin'/);
+    expect(text).toContain('PaywallPrompt');
+    expect(text).toContain('isLoading');
+  });
+
+  it('web RoleGate renders fallback on insufficient role and default to PaywallPrompt', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('fallback ?? <PaywallPrompt />');
+  });
+
+  it('web PaywallPrompt links to /dashboard/billing via next/link', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'auth', 'PaywallPrompt.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from 'next/link'");
+    expect(text).toContain('/dashboard/billing');
+  });
+
+  it('demo paid-feature page uses RoleGate with requiredRole="paid"', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'paid-feature', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('RoleGate');
+    expect(text).toContain('requiredRole="paid"');
+  });
+
+  it('mobile RoleGate uses the mobile useRole hook', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'components', 'auth', 'RoleGate.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('useRole');
+    expect(text).toContain('PaywallPrompt');
+    expect(text).toContain('HIERARCHY');
+    // Mobile imports from the relative path, not an '@' alias
+    expect(text).toContain("from '../../lib/auth/use-role'");
+  });
+
+  it('mobile PaywallPrompt uses expo-router Link + React Native primitives', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'components', 'auth', 'PaywallPrompt.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from 'expo-router'");
+    expect(text).toContain("from 'react-native'");
+    expect(text).toContain('Text');
+    expect(text).toContain('View');
+  });
+
+  it('hierarchy ordering is the same on web and mobile RoleGate', async () => {
+    const webText = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+      'utf8',
+    );
+    const mobileText = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'components', 'auth', 'RoleGate.tsx'),
+      'utf8',
+    );
+    // Both files should define the same hierarchy literal.
+    const pattern = /HIERARCHY[^\n]*=[^\n]*\['free',\s*'paid',\s*'super_admin'\]/;
+    expect(webText).toMatch(pattern);
+    expect(mobileText).toMatch(pattern);
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
