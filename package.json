@@ -1,0 +1,46 @@
+{
+  "name": "create-rell-app",
+  "version": "0.1.0",
+  "description": "Scaffold a fully wired Clerk + Supabase + Drizzle starter app (web, mobile, or full-stack monolith) in one command.",
+  "license": "MIT",
+  "author": "Wayne",
+  "type": "module",
+  "bin": {
+    "create-rell-app": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postbuild": "node scripts/chmod-bin.mjs"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "8.4.1",
+    "commander": "14.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "25.5.2",
+    "eslint": "10.2.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.8.1",
+    "tsup": "8.5.1",
+    "typescript": "6.0.2",
+    "typescript-eslint": "8.58.1",
+    "vitest": "4.1.3"
+  }
+}
