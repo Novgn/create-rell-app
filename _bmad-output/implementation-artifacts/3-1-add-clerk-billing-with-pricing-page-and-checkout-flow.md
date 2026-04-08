@@ -1,6 +1,6 @@
 # Story 3.1: Add Clerk Billing with Pricing Page and Checkout Flow
 
-Status: review
+Status: done
 
 ## Story
 
@@ -130,3 +130,17 @@ claude-opus-4-6 (1M context)
 - `templates/monolith/web/app/dashboard/page.tsx` — added link to /dashboard/billing
 - `templates/monolith/_env.example` — documented `CLERK_BILLING_WEBHOOK_SIGNING_SECRET`
 - `tests/unit/templates-monolith.test.ts` — 4 new tests for the helper, page, link, and env doc
+
+### Code Review Findings (Phase 3)
+
+**No CRITICAL/HIGH findings.** Story 3.1 is a small surface area — two new files and three small modifications.
+
+**MEDIUM (accepted as-is):**
+- `getCurrentUserWithRole` crashes if `DATABASE_URL` isn't set. Acceptable — the template requires a DB to function, and Story 2.4 already documents the lazy-init tradeoff.
+- No custom loading state on `/dashboard/billing`. Route-level `app/loading.tsx` from Story 2.1 covers it.
+
+**LOW (deferred):**
+- Raw role name displayed (`super_admin`) — Story 4.3 will style it.
+- Dashboard link has no styling — Story 4.3.
+
+**CRITICAL:** none.
