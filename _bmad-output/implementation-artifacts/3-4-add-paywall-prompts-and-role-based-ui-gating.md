@@ -1,6 +1,6 @@
 # Story 3.4: Add Paywall Prompts and Role-Based UI Gating
 
-Status: review
+Status: done
 
 ## Story
 
@@ -126,3 +126,15 @@ claude-opus-4-6 (1M context)
 **Modified (1):**
 
 - `tests/unit/templates-monolith.test.ts` — 7 new tests covering hierarchy, default fallback, next/link, demo route, mobile imports, and cross-platform hierarchy parity
+
+### Code Review Findings (Phase 3)
+
+**No CRITICAL/HIGH unresolved findings.**
+
+**MEDIUM (deferred):**
+- Server components could bypass the `<RoleGate>` round trip by calling `getCurrentUserWithRole()` directly — optimization for later.
+- Mobile `PaywallPrompt` links to `/(tabs)/billing`, which doesn't yet exist. Already documented in the file comment.
+
+**LOW (deferred):** inline styles (Story 4.3), HIERARCHY duplication (minor).
+
+**CRITICAL:** none.
