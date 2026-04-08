@@ -1,6 +1,6 @@
 # Story 1.3: Build Scaffold Engine with File Copy and Variable Substitution
 
-Status: review
+Status: done
 
 ## Story
 
@@ -191,3 +191,20 @@ claude-opus-4-6 (1M context)
 - `package.json` — added `fs-extra@11.3.4` and `@types/fs-extra@11.0.4`
 - `src/index.ts` — `runCli()` now accepts `RunCliDeps`, resolves template/target dirs, calls `scaffoldRunner` when template exists
 - `tests/unit/cli.test.ts` — added two new scaffold-integration tests (placeholder path + scaffold-runner-invocation path)
+
+### Code Review Findings (Phase 3)
+
+**CRITICAL (auto-fixed):**
+
+- **Path traversal via `{{projectName}}` in filenames**: A crafted project name like `../../etc/passwd` substituted into a template filename `{{projectName}}.txt` would write outside the target directory. Fixed by introducing `substitutePathSegment()` which rejects substituted segments containing `/`, `\`, `\0`, `..`, `.`, or empty results. Added 7 unit tests covering each rejection class.
+
+**HIGH (auto-fixed):**
+
+- **Missing destination containment check**: Even with sanitized segments, defence-in-depth is good practice. Added `assertContained()` that resolves the destination path and verifies it stays inside `targetDir`. Catches symlinks, normalization quirks, and any future template tokens that might slip through.
+- **Template-side path injection**: Same fix as Critical — `substitutePathSegment` is the choke point.
+
+**MEDIUM (deferred):** see `deferred-findings.md` (`MEDIUM-1.3-A`, `MEDIUM-1.3-B`).
+
+**LOW (deferred):** see `deferred-findings.md` (`LOW-1.3-A`, `LOW-1.3-B`, `LOW-1.3-C`).
+
+**Semgrep scan:** 0 findings on `src/scaffold.ts`, `src/index.ts`, `src/prompts.ts`.

@@ -20,9 +20,20 @@
 //     empty/non-existent.
 
 import fs from 'fs-extra';
-import { posix as posixPath, sep as platformSep } from 'node:path';
+import { posix as posixPath, resolve as platformResolve, sep as platformSep } from 'node:path';
 
 import type { ResolvedInputs } from './prompts.ts';
+
+/**
+ * Thrown when a substituted path segment would escape the target directory
+ * (e.g. via `..` segments or path separators in user input).
+ */
+export class UnsafePathError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnsafePathError';
+  }
+}
 
 /**
  * File extensions treated as binary. Files with these extensions are copied
@@ -108,18 +119,45 @@ export function substituteVariables(input: string, vars: Readonly<Record<string,
 }
 
 /**
- * Apply substitution to every `{{...}}` token inside a path string. Each
- * segment is processed independently — but since the substitution doesn't
- * introduce path separators on its own, we can run it across the whole
- * relative path.
+ * Substitute variables inside a single path **segment** (filename or
+ * directory name). Throws UnsafePathError if the substituted result contains
+ * any path separator, `..`, or is empty / `.` — these would let user input
+ * escape the target directory.
+ *
+ * This is the security-critical entry point: it prevents path traversal via
+ * crafted project names like `../../etc/passwd`. Every template path segment
+ * goes through this function before being joined to the destination.
  */
-function substitutePath(relativePath: string, vars: Readonly<Record<string, string>>): string {
-  return substituteVariables(relativePath, vars);
+export function substitutePathSegment(
+  segment: string,
+  vars: Readonly<Record<string, string>>,
+): string {
+  const substituted = substituteVariables(segment, vars);
+
+  // Defence in depth: forbid empty/dot/dotdot segments and any separators.
+  if (
+    substituted === '' ||
+    substituted === '.' ||
+    substituted === '..' ||
+    substituted.includes('/') ||
+    substituted.includes('\\') ||
+    substituted.includes('\0')
+  ) {
+    throw new UnsafePathError(
+      `Refusing to scaffold path segment that would escape the target directory: ${JSON.stringify(
+        substituted,
+      )} (from template segment ${JSON.stringify(segment)})`,
+    );
+  }
+
+  return substituted;
 }
 
 /**
  * Get the lowercase extension of a filename, including the leading dot.
- * Returns an empty string if there is no extension.
+ * Returns an empty string if there is no extension. Files like `.gitignore`
+ * (where the dot is at index 0) are treated as having no extension and are
+ * therefore copied as text — this is the desired behavior.
  */
 function getExtension(filename: string): string {
   const dot = filename.lastIndexOf('.');
@@ -195,13 +233,18 @@ async function walkAndCopy(
 
     // Substitute variables in the segment, then apply special-name rename.
     // Order matters: substitution first because the rename table doesn't
-    // contain {{tokens}}.
-    const transformedName = renameSpecialFiles(substitutePath(entry.name, vars));
+    // contain {{tokens}}. substitutePathSegment also enforces that the
+    // substituted name does not contain path separators or `..` parts.
+    const transformedName = renameSpecialFiles(substitutePathSegment(entry.name, vars));
     const childSourceRelative =
       sourceRelativeDir === '' ? entry.name : posixPath.join(sourceRelativeDir, entry.name);
     const childDestRelative =
       destRelativeDir === '' ? transformedName : posixPath.join(destRelativeDir, transformedName);
     const destPath = posixPath.join(targetDir, childDestRelative);
+
+    // Defence-in-depth containment check: even with sanitized segments,
+    // verify the resolved absolute path stays inside the target directory.
+    assertContained(destPath, targetDir);
 
     if (entry.isDirectory()) {
       await fs.ensureDir(toPlatform(destPath));
@@ -235,8 +278,31 @@ async function walkAndCopy(
 }
 
 /**
+ * Verify that `childPosixPath` resolves to a location inside `targetPosixPath`.
+ * Throws `UnsafePathError` otherwise. Defence in depth alongside the
+ * `substitutePathSegment` checks — catches any path that slips through via
+ * symlinks, normalization quirks, or future template tokens.
+ */
+function assertContained(childPosixPath: string, targetPosixPath: string): void {
+  // Normalize using the platform-native resolver so we catch e.g. Windows
+  // case-insensitivity or drive letter mismatches at runtime.
+  const childAbs = platformResolve(toPlatform(childPosixPath));
+  const targetAbs = platformResolve(toPlatform(targetPosixPath));
+  const targetWithSep = targetAbs.endsWith(platformSep) ? targetAbs : targetAbs + platformSep;
+  if (childAbs !== targetAbs && !childAbs.startsWith(targetWithSep)) {
+    throw new UnsafePathError(
+      `Refusing to write outside the target directory: ${childAbs} (target: ${targetAbs})`,
+    );
+  }
+}
+
+/**
  * Build the substitution variable map from the resolved inputs. Exported so
  * tests can verify the kebab transform without invoking the full scaffold.
+ *
+ * Note: `projectName` here is the **content** value used for in-file
+ * substitutions and is allowed to contain spaces / punctuation. Path-segment
+ * substitutions go through `substitutePathSegment` which rejects separators.
  */
 export function buildSubstitutionVars(resolvedInputs: ResolvedInputs): Record<string, string> {
   return {

@@ -10,8 +10,10 @@ import {
   isBinaryFile,
   renameSpecialFiles,
   scaffoldProject,
+  substitutePathSegment,
   substituteVariables,
   toKebabCase,
+  UnsafePathError,
 } from '../../src/scaffold.ts';
 
 /**
@@ -340,5 +342,85 @@ describe('scaffoldProject', () => {
     // Just verify the path is shaped like an absolute platform path; we
     // don't want to hard-code the separator in the assertion.
     expect(result.targetDir).toContain(sep);
+  });
+});
+
+describe('substitutePathSegment (security)', () => {
+  it('passes through normal substitutions', () => {
+    expect(substitutePathSegment('{{projectName}}.config.ts', { projectName: 'my-app' })).toBe(
+      'my-app.config.ts',
+    );
+  });
+
+  it('rejects substitutions that introduce a forward slash', () => {
+    expect(() =>
+      substitutePathSegment('{{projectName}}.txt', { projectName: '../escaped' }),
+    ).toThrow(UnsafePathError);
+  });
+
+  it('rejects substitutions that introduce a backslash', () => {
+    expect(() =>
+      substitutePathSegment('{{projectName}}.txt', { projectName: '..\\boom' }),
+    ).toThrow(UnsafePathError);
+  });
+
+  it('rejects substitutions that produce `..`', () => {
+    expect(() => substitutePathSegment('{{projectName}}', { projectName: '..' })).toThrow(
+      UnsafePathError,
+    );
+  });
+
+  it('rejects substitutions that produce `.`', () => {
+    expect(() => substitutePathSegment('{{projectName}}', { projectName: '.' })).toThrow(
+      UnsafePathError,
+    );
+  });
+
+  it('rejects substitutions that produce an empty segment', () => {
+    expect(() => substitutePathSegment('{{projectName}}', { projectName: '' })).toThrow(
+      UnsafePathError,
+    );
+  });
+
+  it('rejects substitutions that contain a NUL byte', () => {
+    expect(() =>
+      substitutePathSegment('{{projectName}}', { projectName: 'evil\0name' }),
+    ).toThrow(UnsafePathError);
+  });
+});
+
+describe('scaffoldProject (path traversal defence)', () => {
+  it('refuses to scaffold when projectName contains path separators', async () => {
+    // Build a fixture whose filename uses {{projectName}}.
+    await mkdir(dirs.templateDir, { recursive: true });
+    await writeFile(
+      join(dirs.templateDir, '{{projectName}}.txt'),
+      'hello {{projectName}}\n',
+      'utf8',
+    );
+
+    await expect(
+      scaffoldProject({
+        templateDir: dirs.templateDir,
+        targetDir: dirs.targetDir,
+        resolvedInputs: { projectName: '../boom', template: 'web', pm: 'pnpm' },
+      }),
+    ).rejects.toBeInstanceOf(UnsafePathError);
+  });
+
+  it('still substitutes projectName inside file contents (only path segments are restricted)', async () => {
+    await mkdir(dirs.templateDir, { recursive: true });
+    // Filename does NOT use {{projectName}}, so the path-segment guard does
+    // not fire and the in-file substitution still runs with the spaces.
+    await writeFile(join(dirs.templateDir, 'package.json'), '"name": "{{projectName}}"', 'utf8');
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'My SaaS App', template: 'web', pm: 'pnpm' },
+    });
+
+    const pkg = await readFile(join(dirs.targetDir, 'package.json'), 'utf8');
+    expect(pkg).toBe('"name": "My SaaS App"');
   });
 });
