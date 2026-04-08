@@ -65,6 +65,9 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'shared/db/client.ts',
   'shared/db/queries.ts',
   'shared/db/migrations/0000_initial.sql',
+  // Story 3.1 additions
+  'web/lib/auth/current-user.ts',
+  'web/app/dashboard/billing/page.tsx',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -471,6 +474,47 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain("schema: './db/schema.ts'");
     expect(text).toContain("dialect: 'postgresql'");
     expect(text).toContain('DATABASE_URL');
+  });
+
+  // === Story 3.1 — Clerk Billing pricing page ===
+
+  it('current-user helper reads auth() + getDb + getUserRoleByClerkId', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'auth', 'current-user.ts'),
+      'utf8',
+    );
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain("from '@clerk/nextjs/server'");
+    expect(text).toContain('getUserRoleByClerkId');
+    expect(text).toContain('getDb');
+    expect(text).toContain('getCurrentUserWithRole');
+    // Default to 'free' when no row exists
+    expect(text).toContain("'free'");
+  });
+
+  it('billing page uses Clerk PricingTable and shows the current role', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'billing', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("import { PricingTable } from '@clerk/nextjs'");
+    expect(text).toContain('<PricingTable />');
+    expect(text).toContain('getCurrentUserWithRole');
+    expect(text).toContain('Current plan');
+  });
+
+  it('dashboard landing page links to /dashboard/billing', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from 'next/link'");
+    expect(text).toContain('/dashboard/billing');
+  });
+
+  it('_env.example documents CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
+    const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
+    expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {

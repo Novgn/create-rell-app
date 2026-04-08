@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
+import Link from 'next/link';
 
 // Protected dashboard landing page. Guaranteed to run only for authenticated
 // users because (a) middleware redirects unauth'd requests and (b) the
@@ -10,7 +11,9 @@ export default async function DashboardPage() {
     <section>
       <h1>Welcome back</h1>
       <p>Signed in as Clerk user: {userId}</p>
-      <p>Billing, RBAC, and data features land in Epic 3 and beyond.</p>
+      <p>
+        <Link href="/dashboard/billing">Manage billing</Link>
+      </p>
     </section>
   );
 }
