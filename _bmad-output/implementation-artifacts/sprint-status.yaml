@@ -52,7 +52,7 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Monolith Template — Authentication & Database
-  epic-2: in-progress
+  epic-2: done
   2-1-create-monolith-template-base-structure: done
   2-2-add-clerk-authentication-with-native-supabase-third-party-auth: done
   2-3-add-sign-in-sign-up-pages-and-protected-route-middleware: done
