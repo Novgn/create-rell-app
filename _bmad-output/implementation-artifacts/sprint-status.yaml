@@ -56,7 +56,7 @@ development_status:
   2-1-create-monolith-template-base-structure: done
   2-2-add-clerk-authentication-with-native-supabase-third-party-auth: done
   2-3-add-sign-in-sign-up-pages-and-protected-route-middleware: done
-  2-4-add-drizzle-schema-migrations-and-typed-queries: review
+  2-4-add-drizzle-schema-migrations-and-typed-queries: done
   epic-2-retrospective: optional
 
   # Epic 3: Monolith Template — Billing & Access Control

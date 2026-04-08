@@ -410,12 +410,15 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('$inferInsert');
   });
 
-  it('shared/db/client.ts uses drizzle + postgres and reads DATABASE_URL', async () => {
+  it('shared/db/client.ts uses drizzle + postgres and reads DATABASE_URL lazily', async () => {
     const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'client.ts'), 'utf8');
     expect(text).toContain("from 'drizzle-orm/postgres-js'");
     expect(text).toContain("from 'postgres'");
     expect(text).toContain('DATABASE_URL');
-    expect(text).toContain('export const db');
+    // Lazy-initialized client (review fix: module-load throw would break
+    // next build on machines without DATABASE_URL set).
+    expect(text).toContain('export function getDb');
+    expect(text).toContain('cachedDb');
   });
 
   it('shared/db/queries.ts exports typed select + upsert helpers', async () => {
@@ -437,8 +440,10 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('ENABLE ROW LEVEL SECURITY');
     expect(text).toContain("auth.jwt()->>'sub'");
     expect(text).toContain('select_user_roles_own');
-    expect(text).toContain('select_user_roles_admin');
     expect(text).toContain('CREATE POLICY');
+    // The 'super_admin' literal appears in the CHECK constraint on the
+    // role column even though the admin SELECT policy is intentionally
+    // deferred to Story 3.3 (avoids recursive RLS lookup).
     expect(text).toContain("'super_admin'");
   });
 

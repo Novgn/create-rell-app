@@ -11,4 +11,4 @@
 
 export * from './db/schema';
 export * from './db/queries';
-export type { DbClient } from './db/client';
+export { getDb, type DbClient } from './db/client';

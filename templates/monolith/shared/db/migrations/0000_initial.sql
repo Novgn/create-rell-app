@@ -51,26 +51,6 @@ CREATE POLICY "select_user_roles_own"
     USING (auth.jwt()->>'sub' = "clerk_user_id");
 
 -- ----------------------------------------------------------------------------
--- Policy: select_user_roles_admin
---
--- super_admin god-mode: users with role='super_admin' can read every row.
--- The nested SELECT checks the caller's row and unwraps its role. RLS
--- evaluates this policy in addition to `select_user_roles_own`, so an
--- admin sees everything while regular users still see only their row.
--- ----------------------------------------------------------------------------
-CREATE POLICY "select_user_roles_admin"
-    ON "user_roles"
-    FOR SELECT
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM "user_roles" AS admin
-            WHERE admin.clerk_user_id = auth.jwt()->>'sub'
-              AND admin.role = 'super_admin'
-        )
-    );
-
--- ----------------------------------------------------------------------------
 -- Policy: insert_user_roles_service
 --
 -- Regular users cannot insert into user_roles — role assignment happens
@@ -96,3 +76,9 @@ CREATE POLICY "update_user_roles_service"
     TO authenticated
     USING (false)
     WITH CHECK (false);
+
+-- NOTE: super_admin "god mode" read policy is intentionally NOT added here.
+-- The naive EXISTS-subquery form would recursively hit the same `user_roles`
+-- table via RLS and risk infinite recursion. Story 3.3 (RBAC) will add a
+-- SECURITY DEFINER helper function (e.g. `is_super_admin()`) that bypasses
+-- RLS internally, then use that function in the policy USING clause.

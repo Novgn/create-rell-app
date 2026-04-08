@@ -195,3 +195,43 @@ The hook memoizes on `[session]`, which creates a new client object on every ses
 The Next.js config doesn't set any `headers()` for CSP, HSTS, X-Frame-Options, etc.
 
 **Why deferred:** Story 4.4 (ESLint/Prettier/Husky/inline comments DX pass) or a future polish story is a better home for security header configuration. The Clerk integration handles its own OAuth flow CSP needs.
+
+---
+
+## Story 2.3 — Sign-in / Sign-up / Middleware
+
+### MEDIUM-2.3-A: Mobile sign-in form has no client-side validation
+
+**Source:** `templates/monolith/mobile/app/(auth)/sign-in.tsx`
+
+Empty email/password fields can be submitted and rely on Clerk's server-side rejection for the error. Real apps add inline validation (e.g. via `react-hook-form` + `zod`).
+
+**Why deferred:** The scaffold is intentionally minimal. Story 4.2 adds React Hook Form + Zod, at which point we can retrofit the form.
+
+### MEDIUM-2.3-B: Mobile sign-up doesn't complete email verification
+
+**Source:** `templates/monolith/mobile/app/(auth)/sign-up.tsx`
+
+After `signUp.create()`, Clerk requires a code verification step. The scaffold stops with an error message pointing this out.
+
+**Why deferred:** Email verification is app-specific UX; leaving it as a documented TODO keeps the scaffold clean.
+
+---
+
+## Story 2.4 — Drizzle schema
+
+### LOW-2.4-A: No `db:drop` / `db:reset` scripts
+
+**Source:** `templates/monolith/package.json`
+
+Would be useful during dev to wipe + re-migrate the local database.
+
+**Why deferred:** Story 4.4 can add these.
+
+### LOW-2.4-B: `drizzle.config.ts` uses empty-string fallback for DATABASE_URL
+
+**Source:** `templates/monolith/shared/drizzle.config.ts`
+
+`process.env.DATABASE_URL ?? ''` silently runs drizzle-kit with an empty URL, which produces a less-clear error than throwing up front.
+
+**Why deferred:** Drizzle Kit is a dev tool — the failure mode is visible enough. Changing this would complicate the config in exchange for minor UX improvement.

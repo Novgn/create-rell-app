@@ -1,6 +1,6 @@
 # Story 2.4: Add Drizzle Schema, Migrations, and Typed Queries
 
-Status: review
+Status: done
 
 ## Story
 
