@@ -245,6 +245,12 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.dependencies['expo-secure-store']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
+  it('mobile/lib/env.ts does not reference CLERK_SECRET_KEY (secret must stay server-side)', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'env.ts'), 'utf8');
+    expect(text).not.toContain('CLERK_SECRET_KEY');
+    expect(text).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+  });
+
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
     const filesToCheck: string[] = [];
     async function walk(dir: string): Promise<void> {

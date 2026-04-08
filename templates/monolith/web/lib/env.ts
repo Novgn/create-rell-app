@@ -31,6 +31,8 @@ export const env = {
   database: {
     // Populated in Story 2.4 (Drizzle). Optional for Story 2.2 so the web
     // app can boot without a database during auth-only development.
-    url: process.env.DATABASE_URL ?? '',
+    // Returns `undefined` rather than an empty string so downstream callers
+    // can explicit-check and fail with a clearer message at the call site.
+    url: process.env.DATABASE_URL,
   },
 } as const;

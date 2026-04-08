@@ -175,3 +175,23 @@ Next.js auto-regenerates this file on dev server start. Committing a static vers
 `npm run --prefix web dev` works with npm and pnpm but yarn 1 doesn't accept `--prefix`. Yarn 4 uses `yarn workspace web run dev`.
 
 **Why deferred:** Story 1.4 yarn-classic vs yarn-4 mismatch (MEDIUM-1.4-A) already captures this class of issue. The README's canonical commands use `{{pmRunCmd}} dev:web` which forwards to whatever script the chosen pm natively supports.
+
+---
+
+## Story 2.2 — Clerk + Supabase native 3P auth
+
+### LOW-2.2-A: `useSupabaseClient` memoization could be tightened
+
+**Source:** `templates/monolith/web/lib/supabase/client.ts`
+
+The hook memoizes on `[session]`, which creates a new client object on every session refresh. The `accessToken` callback already pulls fresh tokens on every request, so the re-creation is wasted work.
+
+**Why deferred:** Attempting to memoize on `[]` would cause the callback to close over a stale `session` reference from the first render — correctness > micro-perf. Leave as-is.
+
+### LOW-2.2-B: No CSP / security headers
+
+**Source:** `templates/monolith/web/next.config.ts`
+
+The Next.js config doesn't set any `headers()` for CSP, HSTS, X-Frame-Options, etc.
+
+**Why deferred:** Story 4.4 (ESLint/Prettier/Husky/inline comments DX pass) or a future polish story is a better home for security header configuration. The Clerk integration handles its own OAuth flow CSP needs.

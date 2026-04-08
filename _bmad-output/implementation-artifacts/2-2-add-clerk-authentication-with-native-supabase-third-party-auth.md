@@ -1,6 +1,6 @@
 # Story 2.2: Add Clerk Authentication with Native Supabase Third-Party Auth
 
-Status: review
+Status: done
 
 ## Story
 
@@ -174,3 +174,16 @@ claude-opus-4-6 (1M context)
 - `templates/monolith/_env.example` — 5 web keys + 3 mobile keys documented
 - `templates/monolith/README.md` — auth notes updated
 - `tests/unit/templates-monolith.test.ts` — 12 new tests covering ClerkProvider imports, Supabase client shape, env validation, pinned deps, and the no-deprecated-pattern sweep
+
+### Code Review Findings (Phase 3)
+
+**HIGH:** none requiring fix. The per-request `createServerSupabaseClient` and fail-fast `env.ts` are intentional architectural choices.
+
+**MEDIUM (auto-fixed):**
+
+- **Mobile secret-key leak check**: added a test that asserts `mobile/lib/env.ts` never references `CLERK_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` — Expo ships bundled JS to the device, so these must stay server-side only.
+- **`DATABASE_URL` empty-string default**: changed `process.env.DATABASE_URL ?? ''` to return `undefined` so downstream Story 2.4 callers can explicit-check and produce a clearer error.
+
+**LOW (deferred):** see `deferred-findings.md` (`LOW-2.2-A` memoization micro-perf, `LOW-2.2-B` CSP headers).
+
+**CRITICAL:** none.
