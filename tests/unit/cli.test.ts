@@ -67,6 +67,29 @@ describe('buildProgram', () => {
 
     expect(() => program.parse([], { from: 'user' })).toThrow();
   });
+
+  it('parses --no-install as install: false', () => {
+    const program = buildProgram();
+    program.exitOverride();
+    program.action(() => {});
+
+    program.parse(['my-project', '--no-install'], { from: 'user' });
+
+    expect(program.opts().install).toBe(false);
+  });
+
+  it('leaves install undefined (default true) when --no-install is not passed', () => {
+    const program = buildProgram();
+    program.exitOverride();
+    program.action(() => {});
+
+    program.parse(['my-project'], { from: 'user' });
+
+    // Commander stores the default for `--no-X` as true. We accept either
+    // `true` or `undefined` here since the consuming code coerces it.
+    const install = program.opts().install;
+    expect(install === true || install === undefined).toBe(true);
+  });
 });
 
 describe('runCli (action handler)', () => {
@@ -100,6 +123,9 @@ describe('runCli (action handler)', () => {
         const first = choices[0];
         if (!first) throw new Error('empty choices');
         return Promise.resolve(first.value);
+      },
+      confirm({ default: defaultValue }) {
+        return Promise.resolve(defaultValue ?? false);
       },
     };
     return { driver, selectCallCount };
@@ -176,7 +202,7 @@ describe('runCli scaffold integration', () => {
     rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  function quietDriver(): PromptDriver {
+  function quietDriver(confirmDefault = true): PromptDriver {
     return {
       text: ({ default: defaultValue }) => Promise.resolve(defaultValue ?? ''),
       select: ({ choices }) => {
@@ -184,6 +210,7 @@ describe('runCli scaffold integration', () => {
         if (!first) throw new Error('empty choices');
         return Promise.resolve(first.value);
       },
+      confirm: () => Promise.resolve(confirmDefault),
     };
   }
 

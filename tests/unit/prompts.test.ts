@@ -63,6 +63,11 @@ function makeFakeDriver(config: FakeDriverConfig = {}): {
       }
       return Promise.resolve(first.value);
     },
+    confirm(args) {
+      // Tests in this file don't exercise confirm; default to false so any
+      // accidental call fails the surrounding flow loudly.
+      return Promise.resolve(args.default ?? false);
+    },
   };
 
   return { driver, calls };

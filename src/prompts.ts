@@ -14,7 +14,7 @@
 //     `undefined` so the prompt is shown again, which is the friendliest UX
 //     for partial/invalid input.
 
-import { input, select } from '@inquirer/prompts';
+import { confirm, input, select } from '@inquirer/prompts';
 
 import type { PackageManagerName, TemplateName } from './index.ts';
 
@@ -129,6 +129,7 @@ export interface PromptDriver {
     message: string;
     choices: ReadonlyArray<{ readonly name: string; readonly value: TValue; readonly description?: string }>;
   }): Promise<TValue>;
+  confirm(args: { message: string; default?: boolean }): Promise<boolean>;
 }
 
 /**
@@ -157,6 +158,14 @@ export const defaultPromptDriver: PromptDriver = {
     );
     try {
       return await select({ message, choices: mapped });
+    } catch (err) {
+      if (isInquirerExitError(err)) throw new PromptCancelledError();
+      throw err;
+    }
+  },
+  async confirm({ message, default: defaultValue }) {
+    try {
+      return await confirm({ message, default: defaultValue });
     } catch (err) {
       if (isInquirerExitError(err)) throw new PromptCancelledError();
       throw err;
