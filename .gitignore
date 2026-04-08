@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+*.tsbuildinfo
+.DS_Store
+
+# env files (allow .env.example)
+.env
+.env.*
+!.env.example
+
+# editor
+.vscode
+.idea
+
+# OS
+Thumbs.db

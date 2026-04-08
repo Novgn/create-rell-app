@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+_bmad
+_bmad-output
+.claude
+templates
+*.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
