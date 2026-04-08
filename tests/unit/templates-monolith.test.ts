@@ -35,16 +35,27 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/lib/env.ts',
   'web/lib/supabase/client.ts',
   'web/lib/supabase/server.ts',
+  // Story 2.3 additions
+  'web/middleware.ts',
+  'web/app/(auth)/sign-in/[[...sign-in]]/page.tsx',
+  'web/app/(auth)/sign-up/[[...sign-up]]/page.tsx',
+  'web/app/(dashboard)/layout.tsx',
+  'web/app/(dashboard)/page.tsx',
   'mobile/package.json',
   'mobile/app.json',
   'mobile/babel.config.js',
   'mobile/tsconfig.json',
   'mobile/app/_layout.tsx',
-  'mobile/app/index.tsx',
   // Story 2.2 additions
   'mobile/lib/env.ts',
   'mobile/lib/token-cache.ts',
   'mobile/lib/supabase/client.ts',
+  // Story 2.3 additions (mobile auth flows, replaces mobile/app/index.tsx)
+  'mobile/app/(auth)/_layout.tsx',
+  'mobile/app/(auth)/sign-in.tsx',
+  'mobile/app/(auth)/sign-up.tsx',
+  'mobile/app/(tabs)/_layout.tsx',
+  'mobile/app/(tabs)/index.tsx',
   'shared/package.json',
   'shared/tsconfig.json',
   'shared/index.ts',
@@ -249,6 +260,101 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'env.ts'), 'utf8');
     expect(text).not.toContain('CLERK_SECRET_KEY');
     expect(text).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+  });
+
+  // === Story 2.3 — middleware + sign-in/sign-up + protected routes ===
+
+  it('web middleware uses clerkMiddleware and createRouteMatcher from @clerk/nextjs/server', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'middleware.ts'), 'utf8');
+    expect(text).toContain("from '@clerk/nextjs/server'");
+    expect(text).toContain('clerkMiddleware');
+    expect(text).toContain('createRouteMatcher');
+    expect(text).toContain('auth.protect');
+    expect(text).toContain('matcher');
+  });
+
+  it('web middleware protects (dashboard) route group with no bypass', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'middleware.ts'), 'utf8');
+    expect(text).toContain('dashboard');
+    // Matcher must not have a loose "public routes skip auth" pattern.
+    expect(text).not.toContain('publicRoutes');
+  });
+
+  it('web sign-in page imports SignIn from @clerk/nextjs', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', '(auth)', 'sign-in', '[[...sign-in]]', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("import { SignIn } from '@clerk/nextjs'");
+    expect(text).toContain('<SignIn />');
+  });
+
+  it('web sign-up page imports SignUp from @clerk/nextjs', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', '(auth)', 'sign-up', '[[...sign-up]]', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("import { SignUp } from '@clerk/nextjs'");
+    expect(text).toContain('<SignUp />');
+  });
+
+  it('web dashboard layout uses auth() + redirects unauthenticated users', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', '(dashboard)', 'layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from '@clerk/nextjs/server'");
+    expect(text).toContain('auth()');
+    expect(text).toContain('redirect');
+  });
+
+  it('web dashboard layout uses UserButton', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', '(dashboard)', 'layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('UserButton');
+  });
+
+  it('mobile (auth)/sign-in uses useSignIn from @clerk/clerk-expo', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '(auth)', 'sign-in.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("import { useSignIn } from '@clerk/clerk-expo'");
+    expect(text).toContain('signIn.create');
+  });
+
+  it('mobile (auth)/sign-up uses useSignUp from @clerk/clerk-expo', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '(auth)', 'sign-up.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("import { useSignUp } from '@clerk/clerk-expo'");
+    expect(text).toContain('signUp.create');
+  });
+
+  it('mobile (tabs)/_layout.tsx redirects unauthenticated users via useAuth', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', '_layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from '@clerk/clerk-expo'");
+    expect(text).toContain('useAuth');
+    expect(text).toContain('Redirect');
+    expect(text).toContain('sign-in');
+  });
+
+  it('mobile root layout uses Slot (routing delegated to nested layouts)', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'app', '_layout.tsx'), 'utf8');
+    expect(text).toContain("from 'expo-router'");
+    expect(text).toContain('Slot');
+    // Old Story 2.1 used Stack.Screen name="index" — confirm we migrated.
+    expect(text).not.toContain('Stack.Screen');
+  });
+
+  it('mobile/app/index.tsx was removed (replaced by (tabs)/index.tsx)', async () => {
+    await expect(stat(join(MONOLITH_DIR, 'mobile', 'app', 'index.tsx'))).rejects.toBeDefined();
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
