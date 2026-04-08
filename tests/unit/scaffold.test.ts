@@ -1,0 +1,344 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
+
+import {
+  BINARY_EXTENSIONS,
+  buildSubstitutionVars,
+  isBinaryFile,
+  renameSpecialFiles,
+  scaffoldProject,
+  substituteVariables,
+  toKebabCase,
+} from '../../src/scaffold.ts';
+
+/**
+ * A few specific bytes that include 0x00 and high-bit values so we can
+ * detect any utf-8 round-tripping that would corrupt them.
+ */
+const BINARY_PAYLOAD = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]);
+
+interface TempDirs {
+  templateDir: string;
+  targetDir: string;
+}
+
+let dirs: TempDirs;
+
+beforeEach(() => {
+  const root = mkdtempSync(join(tmpdir(), 'crapp-scaffold-'));
+  dirs = {
+    templateDir: join(root, 'template'),
+    targetDir: join(root, 'target'),
+  };
+});
+
+afterEach(() => {
+  if (dirs.templateDir) rmSync(join(dirs.templateDir, '..'), { recursive: true, force: true });
+});
+
+async function makeTemplateFixture(root: string): Promise<void> {
+  await mkdir(root, { recursive: true });
+  await mkdir(join(root, 'src'), { recursive: true });
+  await mkdir(join(root, 'nested', '{{projectNameKebab}}'), { recursive: true });
+  await mkdir(join(root, 'assets'), { recursive: true });
+
+  await writeFile(
+    join(root, 'package.json'),
+    '{\n  "name": "{{projectName}}",\n  "version": "0.1.0"\n}\n',
+    'utf8',
+  );
+  await writeFile(
+    join(root, 'README.md'),
+    '# {{projectName}}\n\nKebab: {{projectNameKebab}}\n',
+    'utf8',
+  );
+  await writeFile(join(root, '_gitignore'), 'node_modules\ndist\n', 'utf8');
+  await writeFile(
+    join(root, 'src', '{{projectName}}.config.ts'),
+    "export const name = '{{projectName}}';\n",
+    'utf8',
+  );
+  await writeFile(
+    join(root, 'nested', '{{projectNameKebab}}', 'index.ts'),
+    "export default '{{projectNameKebab}}';\n",
+    'utf8',
+  );
+  await writeFile(join(root, 'assets', 'logo.png'), BINARY_PAYLOAD);
+  await writeFile(join(root, 'unknown-token.txt'), '{{notReplaced}} stays\n', 'utf8');
+}
+
+describe('toKebabCase', () => {
+  it('lowercases and replaces non-alphanumerics with dashes', () => {
+    expect(toKebabCase('My App')).toBe('my-app');
+  });
+
+  it('collapses runs of separators', () => {
+    expect(toKebabCase('foo___bar  baz')).toBe('foo-bar-baz');
+  });
+
+  it('trims leading and trailing separators', () => {
+    expect(toKebabCase('  hello world  ')).toBe('hello-world');
+  });
+
+  it('preserves digits', () => {
+    expect(toKebabCase('App2')).toBe('app2');
+  });
+});
+
+describe('substituteVariables', () => {
+  it('replaces known tokens', () => {
+    expect(substituteVariables('Hello {{name}}!', { name: 'world' })).toBe('Hello world!');
+  });
+
+  it('leaves unknown tokens in place', () => {
+    expect(substituteVariables('{{unknown}} and {{name}}', { name: 'x' })).toBe('{{unknown}} and x');
+  });
+
+  it('handles multiple occurrences of the same token', () => {
+    expect(substituteVariables('{{x}} {{x}}', { x: 'y' })).toBe('y y');
+  });
+});
+
+describe('isBinaryFile', () => {
+  it('detects PNGs', () => {
+    expect(isBinaryFile('logo.png')).toBe(true);
+  });
+
+  it('detects woff fonts', () => {
+    expect(isBinaryFile('font.woff2')).toBe(true);
+  });
+
+  it('treats .ts as text', () => {
+    expect(isBinaryFile('index.ts')).toBe(false);
+  });
+
+  it('treats files with no extension as text', () => {
+    expect(isBinaryFile('Dockerfile')).toBe(false);
+  });
+
+  it('is case-insensitive on the extension', () => {
+    expect(isBinaryFile('LOGO.PNG')).toBe(true);
+  });
+
+  it('exposes a populated extension set', () => {
+    expect(BINARY_EXTENSIONS.size).toBeGreaterThan(0);
+  });
+});
+
+describe('renameSpecialFiles', () => {
+  it('renames _gitignore to .gitignore', () => {
+    expect(renameSpecialFiles('_gitignore')).toBe('.gitignore');
+  });
+
+  it('renames _npmrc to .npmrc', () => {
+    expect(renameSpecialFiles('_npmrc')).toBe('.npmrc');
+  });
+
+  it('renames _env.example to .env.example', () => {
+    expect(renameSpecialFiles('_env.example')).toBe('.env.example');
+  });
+
+  it('passes regular filenames through unchanged', () => {
+    expect(renameSpecialFiles('package.json')).toBe('package.json');
+  });
+});
+
+describe('buildSubstitutionVars', () => {
+  it('produces both projectName and projectNameKebab', () => {
+    const vars = buildSubstitutionVars({
+      projectName: 'My SaaS App',
+      template: 'web',
+      pm: 'pnpm',
+    });
+    expect(vars.projectName).toBe('My SaaS App');
+    expect(vars.projectNameKebab).toBe('my-saas-app');
+  });
+});
+
+describe('scaffoldProject', () => {
+  it('writes every fixture file into the target directory', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    const result = await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    // 7 files in the fixture: package.json, README.md, _gitignore (renamed),
+    // src/{{projectName}}.config.ts, nested/{{projectNameKebab}}/index.ts,
+    // assets/logo.png, unknown-token.txt.
+    expect(result.filesWritten).toBe(7);
+    expect(result.targetDir).toBe(dirs.targetDir);
+  });
+
+  it('substitutes {{projectName}} and {{projectNameKebab}} in file contents', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    const pkg = await readFile(join(dirs.targetDir, 'package.json'), 'utf8');
+    expect(pkg).toContain('"name": "my-app"');
+
+    const readme = await readFile(join(dirs.targetDir, 'README.md'), 'utf8');
+    expect(readme).toContain('# my-app');
+    expect(readme).toContain('Kebab: my-app');
+  });
+
+  it('substitutes {{projectName}} in filenames', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    const configPath = join(dirs.targetDir, 'src', 'my-app.config.ts');
+    const config = await readFile(configPath, 'utf8');
+    expect(config).toContain("export const name = 'my-app'");
+  });
+
+  it('substitutes {{projectNameKebab}} in directory names and contents', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'My SaaS App', template: 'web', pm: 'pnpm' },
+    });
+
+    const nested = await readFile(
+      join(dirs.targetDir, 'nested', 'my-saas-app', 'index.ts'),
+      'utf8',
+    );
+    expect(nested).toContain("export default 'my-saas-app'");
+  });
+
+  it('renames _gitignore to .gitignore', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    const gitignore = await readFile(join(dirs.targetDir, '.gitignore'), 'utf8');
+    expect(gitignore).toBe('node_modules\ndist\n');
+  });
+
+  it('copies binary files byte-for-byte without corruption', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    const copied = await readFile(join(dirs.targetDir, 'assets', 'logo.png'));
+    expect(copied.equals(BINARY_PAYLOAD)).toBe(true);
+  });
+
+  it('leaves unknown {{tokens}} untouched (silent passthrough)', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    const text = await readFile(join(dirs.targetDir, 'unknown-token.txt'), 'utf8');
+    expect(text).toBe('{{notReplaced}} stays\n');
+  });
+
+  it('produces deterministic output across two runs', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+    const root = join(dirs.templateDir, '..');
+
+    const targetA = join(root, 'target-a');
+    const targetB = join(root, 'target-b');
+
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: targetA,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+    await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: targetB,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+
+    async function listAll(root: string): Promise<Array<{ path: string; bytes: Buffer }>> {
+      const out: Array<{ path: string; bytes: Buffer }> = [];
+      async function walk(dir: string, rel: string): Promise<void> {
+        const entries = await readdir(dir, { withFileTypes: true });
+        entries.sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
+        for (const e of entries) {
+          const childRel = rel === '' ? e.name : rel + '/' + e.name;
+          if (e.isDirectory()) {
+            await walk(join(dir, e.name), childRel);
+          } else if (e.isFile()) {
+            out.push({ path: childRel, bytes: await readFile(join(dir, e.name)) });
+          }
+        }
+      }
+      await walk(root, '');
+      return out;
+    }
+
+    const a = await listAll(targetA);
+    const b = await listAll(targetB);
+
+    expect(a.length).toBe(b.length);
+    expect(a.map((x) => x.path)).toEqual(b.map((x) => x.path));
+    for (let i = 0; i < a.length; i += 1) {
+      expect(a[i]?.bytes.equals(b[i]?.bytes ?? Buffer.alloc(0))).toBe(true);
+    }
+  });
+
+  it('throws when the templateDir does not exist', async () => {
+    await expect(
+      scaffoldProject({
+        templateDir: join(dirs.templateDir, 'does-not-exist'),
+        targetDir: dirs.targetDir,
+        resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('throws when templateDir points at a file', async () => {
+    await mkdir(dirs.templateDir, { recursive: true });
+    await writeFile(join(dirs.templateDir, 'just-a-file.txt'), 'hi', 'utf8');
+
+    await expect(
+      scaffoldProject({
+        templateDir: join(dirs.templateDir, 'just-a-file.txt'),
+        targetDir: dirs.targetDir,
+        resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+      }),
+    ).rejects.toThrow(/not a directory/);
+  });
+
+  it('uses platform-native separators in the result targetDir', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+    const result = await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+    });
+    // Just verify the path is shaped like an absolute platform path; we
+    // don't want to hard-code the separator in the assertion.
+    expect(result.targetDir).toContain(sep);
+  });
+});

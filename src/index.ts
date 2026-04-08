@@ -8,6 +8,9 @@
 // fail under symlinked global bin shims (e.g. `npm install -g`).
 
 import { Command } from 'commander';
+import fs from 'fs-extra';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import pkg from '../package.json' with { type: 'json' };
 import {
@@ -17,7 +20,9 @@ import {
   NonInteractiveStdinError,
   PromptCancelledError,
 } from './prompts.ts';
-import type { PromptDriver } from './prompts.ts';
+import type { PromptDriver, ResolvedInputs } from './prompts.ts';
+import { scaffoldProject } from './scaffold.ts';
+import type { ScaffoldResult } from './scaffold.ts';
 
 export type TemplateName = 'web' | 'mobile' | 'monolith';
 export type PackageManagerName = 'npm' | 'pnpm' | 'yarn';
@@ -62,12 +67,65 @@ export function buildProgram(): Command {
  * @param driver       optional prompt driver — tests inject a fake to avoid
  *                     spawning a real TTY prompt
  */
+/**
+ * Resolve the absolute path to the bundled `templates/` directory. The CLI
+ * is published as an npm package with `templates/` next to `dist/`, so we
+ * compute the path relative to the calling source file rather than the
+ * (potentially shimmed) cwd.
+ *
+ * Exported and overrideable so tests can point at a fixture directory.
+ */
+export function resolveTemplatesDir(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  // src/ → ../templates  |  dist/ → ../templates
+  return resolve(here, '..', 'templates');
+}
+
+/**
+ * Compute the absolute target directory for a given project name. Exported
+ * for unit testability and to keep the path resolution policy in one place.
+ */
+export function resolveTargetDir(projectName: string, cwd: string = process.cwd()): string {
+  return resolve(cwd, projectName);
+}
+
+/**
+ * Internal helper used by runCli to perform the scaffold step. Factored out
+ * so tests can stub it via dependency injection without mocking modules.
+ */
+export interface ScaffoldRunner {
+  (templateDir: string, targetDir: string, resolved: ResolvedInputs): Promise<ScaffoldResult>;
+}
+
+const defaultScaffoldRunner: ScaffoldRunner = (templateDir, targetDir, resolved) =>
+  scaffoldProject({ templateDir, targetDir, resolvedInputs: resolved });
+
+export interface RunCliDeps {
+  driver?: PromptDriver;
+  gatherOptions?: { interactive?: boolean };
+  templatesDir?: string;
+  targetDirOverride?: string;
+  scaffoldRunner?: ScaffoldRunner;
+}
+
 export async function runCli(
   projectName: string,
   options: CliOptions,
-  driver: PromptDriver = defaultPromptDriver,
-  gatherOptions: { interactive?: boolean } = {},
+  driverOrDeps: PromptDriver | RunCliDeps = defaultPromptDriver,
+  legacyGatherOptions: { interactive?: boolean } = {},
 ): Promise<void> {
+  // Backwards-compatible signature: callers may pass a PromptDriver as the
+  // third argument (the Story 1.2 shape) or a RunCliDeps object (the
+  // Story 1.3 shape). Tests use whichever is more convenient.
+  const deps: RunCliDeps = isPromptDriver(driverOrDeps)
+    ? { driver: driverOrDeps, gatherOptions: legacyGatherOptions }
+    : driverOrDeps;
+
+  const driver = deps.driver ?? defaultPromptDriver;
+  const gatherOptions = deps.gatherOptions ?? {};
+  const templatesDir = deps.templatesDir ?? resolveTemplatesDir();
+  const scaffoldRunner = deps.scaffoldRunner ?? defaultScaffoldRunner;
+
   const partial = buildPartialInputs(projectName, options.template, options.pm);
 
   let resolved;
@@ -86,8 +144,41 @@ export async function runCli(
     throw err;
   }
 
+  const targetDir = deps.targetDirOverride ?? resolveTargetDir(resolved.projectName);
+  const templateDir = resolve(templatesDir, resolved.template);
+
   console.log('[create-rell-app] resolved configuration:');
   console.log('  project name : %s', resolved.projectName);
   console.log('  template     : %s', resolved.template);
   console.log('  package mgr  : %s', resolved.pm);
+
+  // Story 1.3: scaffold if the template directory is shipped, otherwise
+  // print a friendly placeholder. Real templates land in Epic 2+.
+  const templateExists = await fs.pathExists(templateDir);
+  if (!templateExists) {
+    console.log(
+      '[create-rell-app] template "%s" is not yet bundled — coming in Epic 2. ' +
+        'Skipping scaffold for now.',
+      resolved.template,
+    );
+    return;
+  }
+
+  const result = await scaffoldRunner(templateDir, targetDir, resolved);
+  console.log(
+    '[create-rell-app] scaffolded %d files into %s',
+    result.filesWritten,
+    result.targetDir,
+  );
+}
+
+/**
+ * Discriminate between the legacy `PromptDriver` third-arg and the modern
+ * `RunCliDeps` object based on the presence of method-shaped fields.
+ */
+function isPromptDriver(value: PromptDriver | RunCliDeps): value is PromptDriver {
+  return (
+    typeof (value as PromptDriver).text === 'function' &&
+    typeof (value as PromptDriver).select === 'function'
+  );
 }

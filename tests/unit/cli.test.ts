@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { buildProgram, runCli } from '../../src/index.ts';
-import type { PromptDriver } from '../../src/prompts.ts';
+import type { PromptDriver, ResolvedInputs } from '../../src/prompts.ts';
+import type { ScaffoldResult } from '../../src/scaffold.ts';
 
 describe('buildProgram', () => {
   it('parses project name, --template, and --pm flags', () => {
@@ -152,5 +157,98 @@ describe('runCli (action handler)', () => {
       exitSpy.mockRestore();
       errSpy.mockRestore();
     }
+  });
+});
+
+describe('runCli scaffold integration', () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let tempRoot: string;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    tempRoot = mkdtempSync(join(tmpdir(), 'crapp-cli-'));
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  function quietDriver(): PromptDriver {
+    return {
+      text: ({ default: defaultValue }) => Promise.resolve(defaultValue ?? ''),
+      select: ({ choices }) => {
+        const first = choices[0];
+        if (!first) throw new Error('empty choices');
+        return Promise.resolve(first.value);
+      },
+    };
+  }
+
+  it('skips scaffolding and prints a placeholder when the template directory does not exist', async () => {
+    const driver = quietDriver();
+    const scaffoldCalls: Array<{ templateDir: string }> = [];
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver,
+        gatherOptions: { interactive: true },
+        templatesDir: join(tempRoot, 'templates-empty'),
+        targetDirOverride: join(tempRoot, 'out'),
+        scaffoldRunner: (templateDir, targetDir) => {
+          scaffoldCalls.push({ templateDir });
+          return Promise.resolve({ filesWritten: 0, targetDir } satisfies ScaffoldResult);
+        },
+      },
+    );
+
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+    expect(output).toContain('not yet bundled');
+    expect(scaffoldCalls).toHaveLength(0);
+  });
+
+  it('invokes scaffoldRunner with the resolved template + target dirs when the template exists', async () => {
+    // Build a fake templates directory with a `web` subdirectory.
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+
+    const calls: Array<{
+      templateDir: string;
+      targetDir: string;
+      resolved: ResolvedInputs;
+    }> = [];
+
+    const targetDir = join(tempRoot, 'my-app');
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        scaffoldRunner: (templateDir, target, resolved) => {
+          calls.push({ templateDir, targetDir: target, resolved });
+          return Promise.resolve({ filesWritten: 1, targetDir: target });
+        },
+      },
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.templateDir).toBe(join(templatesDir, 'web'));
+    expect(calls[0]?.targetDir).toBe(targetDir);
+    expect(calls[0]?.resolved.template).toBe('web');
+    expect(calls[0]?.resolved.pm).toBe('pnpm');
+
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+    // The format string and its args are captured separately by the spy, so
+    // we look for the format-string fragment plus the value separately.
+    expect(output).toContain('scaffolded');
+    expect(output).toContain('files into');
+    expect(output).toContain(targetDir);
   });
 });
