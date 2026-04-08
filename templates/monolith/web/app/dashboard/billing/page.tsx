@@ -30,6 +30,12 @@ export default async function BillingPage() {
         database and your access elevates on the next page load.
       </p>
       <PricingTable />
+      <p style={{ marginTop: '1.5rem', fontSize: '0.875rem', opacity: 0.7 }}>
+        To manage an existing subscription (change plan, update payment
+        method, cancel), open the Clerk user menu in the header —
+        subscription management lives alongside your account settings
+        under Clerk's <code>&lt;UserButton /&gt;</code>.
+      </p>
     </section>
   );
 }

@@ -68,6 +68,10 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   // Story 3.1 additions
   'web/lib/auth/current-user.ts',
   'web/app/dashboard/billing/page.tsx',
+  // Story 3.2 additions
+  'web/lib/billing/plan-to-role.ts',
+  'web/lib/billing/event-handler.ts',
+  'web/app/api/webhooks/clerk-billing/route.ts',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -515,6 +519,121 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   it('_env.example documents CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
     const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
     expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
+  });
+
+  // === Story 3.2 — Billing webhook ===
+
+  it('web package.json pins svix for webhook signature verification', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['svix']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('web/lib/env.ts reads CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
+    expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
+    expect(text).toContain('billingWebhookSigningSecret');
+  });
+
+  it('plan-to-role.ts maps paid_tier to paid and defaults unknown to free', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'plan-to-role.ts'),
+      'utf8',
+    );
+    expect(text).toContain("'paid_tier'");
+    expect(text).toContain("return 'paid'");
+    expect(text).toContain("'admin_tier'");
+    expect(text).toContain("return 'super_admin'");
+    expect(text).toContain("return 'free'");
+    // Unknown plan must default to free (least privilege).
+    expect(text).toContain('unknown plan');
+  });
+
+  it('event-handler.ts handles user.created + subscription.created + subscription.cancelled', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain("'user.created'");
+    expect(text).toContain("'subscription.created'");
+    expect(text).toContain("'subscription.updated'");
+    expect(text).toContain("'subscription.cancelled'");
+    expect(text).toContain("'subscription.deleted'");
+    expect(text).toContain('setUserRole');
+    expect(text).toContain('getDb');
+    expect(text).toContain('planToRole');
+  });
+
+  it('event-handler downgrades cancelled subscriptions to free', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    // Look for the cancelled+deleted case block setting role 'free'.
+    expect(text).toMatch(/subscription\.cancelled[\s\S]*setUserRole[\s\S]*'free'/);
+  });
+
+  it('event-handler returns processed:false for unknown event types', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    expect(text).toContain('processed: false');
+    expect(text).toContain('default:');
+  });
+
+  it('clerk-billing route.ts reads raw body BEFORE any JSON parsing (svix requires raw HMAC body)', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    // Confirm req.text() appears before any req.json()
+    expect(text).toContain('req.text()');
+    expect(text).not.toContain('req.json()');
+  });
+
+  it('clerk-billing route.ts verifies svix signature and returns 400 on failure', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from 'svix'");
+    expect(text).toContain('Webhook');
+    expect(text).toContain('wh.verify');
+    expect(text).toContain('svix-id');
+    expect(text).toContain('svix-timestamp');
+    expect(text).toContain('svix-signature');
+    expect(text).toContain('status: 400');
+  });
+
+  it('clerk-billing route.ts delegates to handleBillingEvent and returns 500 on handler error', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain('handleBillingEvent');
+    expect(text).toContain('status: 500');
+  });
+
+  it('clerk-billing route.ts does not leak internal errors in the response body', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    // Generic error responses only.
+    expect(text).toContain("error: 'Invalid signature'");
+    expect(text).toContain("error: 'Webhook processing failed'");
+    // No stack trace or raw error message in the response.
+    expect(text).not.toMatch(/error:\s*\(err as Error\)\.message/);
+  });
+
+  it('billing page documents that subscription management lives in Clerk UserButton', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'billing', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('UserButton');
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {

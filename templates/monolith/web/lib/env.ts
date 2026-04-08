@@ -23,6 +23,10 @@ export const env = {
     publishableKey: required('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'),
     // Secret key is only read on the server — never expose to the client.
     secretKey: required('CLERK_SECRET_KEY'),
+    // Signing secret for the Clerk Billing webhook (Story 3.2). Only the
+    // webhook route reads this; other paths do not need it — but fail fast
+    // at module load so a missing value is obvious.
+    billingWebhookSigningSecret: required('CLERK_BILLING_WEBHOOK_SIGNING_SECRET'),
   },
   supabase: {
     url: required('NEXT_PUBLIC_SUPABASE_URL'),
