@@ -139,3 +139,39 @@ The regex pattern lives in one constant but the error message describing the rul
 `@scope/name` is rejected because of the `/`. This is intentional — `create-rell-app` scaffolds applications, not publishable libraries — but it's worth documenting that the project name → directory name → optional `package.json` name is a single value.
 
 **Why not a bug:** Documented decision. Users can still edit `package.json` post-scaffold.
+
+---
+
+## Story 2.1 — Monolith Template Base Structure
+
+### MEDIUM-2.1-A: No test asserts every token appears in at least one file
+
+**Source:** `tests/unit/templates-monolith.test.ts`
+
+The end-to-end test catches leftover `{{...}}` tokens after substitution but doesn't verify that every expected token (e.g. `{{projectNameKebab}}`, `{{pmRunCmd}}`) appeared somewhere in the template source. A file that forgot its token would silently be project-agnostic.
+
+**Why deferred:** Smoke tests in Story 6.1 will catch integration issues by running `next build` against the scaffolded output. Unit-level token enforcement is low value.
+
+### MEDIUM-2.1-B: `react-native` / `expo` version pairing not independently verified
+
+**Source:** `templates/monolith/mobile/package.json`
+
+`react-native@0.85.0` is pinned based on `npm view react-native version`; the actual Expo SDK 55 bundled version should be verified against Expo's matrix (https://github.com/expo/expo/blob/main/packages/expo/bundledNativeModules.json).
+
+**Why deferred:** If mismatched, `expo install` would warn and smoke tests (6.1) would catch build failures. Pinning to the latest stable of each is the best we can do from `npm view` alone.
+
+### LOW-2.1-A: Next.js `next-env.d.ts` may become stale
+
+**Source:** `templates/monolith/web/next-env.d.ts`
+
+Next.js auto-regenerates this file on dev server start. Committing a static version prevents first-dev warnings but means we must keep the reference directives in sync with Next.js conventions.
+
+**Why deferred:** File content is stable across Next.js 14/15/16 minor releases.
+
+### LOW-2.1-B: Root `package.json` scripts use `--prefix` which is npm/pnpm-specific
+
+**Source:** `templates/monolith/package.json`, `scripts.dev:web`
+
+`npm run --prefix web dev` works with npm and pnpm but yarn 1 doesn't accept `--prefix`. Yarn 4 uses `yarn workspace web run dev`.
+
+**Why deferred:** Story 1.4 yarn-classic vs yarn-4 mismatch (MEDIUM-1.4-A) already captures this class of issue. The README's canonical commands use `{{pmRunCmd}} dev:web` which forwards to whatever script the chosen pm natively supports.

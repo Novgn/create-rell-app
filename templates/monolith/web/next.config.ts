@@ -2,9 +2,10 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // Allow importing TypeScript source from the `shared` workspace without a build step.
-  // Story 2.4 wires Drizzle + shared schema — until then this is a forward-looking hook.
-  transpilePackages: ['@{{projectNameKebab}}/shared'],
+  // Story 2.4 will add `transpilePackages: ['@{{projectNameKebab}}/shared']`
+  // once the shared workspace actually exports code that web imports
+  // (Drizzle schema, typed queries). Leaving it out for now avoids a
+  // dangling dependency on an empty package.
 };
 
 export default nextConfig;

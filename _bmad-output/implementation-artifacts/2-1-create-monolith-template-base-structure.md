@@ -1,6 +1,6 @@
 # Story 2.1: Create Monolith Template Base Structure
 
-Status: review
+Status: done
 
 ## Story
 
@@ -259,3 +259,18 @@ claude-opus-4-6 (1M context)
 
 - `eslint.config.js` — broader ignore list for scaffold-output directories
 - `tests/unit/cli.test.ts` — 3 legacy tests updated to use `RunCliDeps` with temp `targetDirOverride`
+
+### Code Review Findings (Phase 3)
+
+**HIGH (auto-fixed):**
+
+- **`transpilePackages: ['@{{projectNameKebab}}/shared']`** in `next.config.ts` pointed at an empty TS-only package with no proper exports. Removed for Story 2.1; Story 2.4 will add it back once the shared workspace has real code that web imports.
+- **`tsconfig.base.json` included DOM libs** (`DOM`, `DOM.Iterable`), which would pollute the mobile workspace with browser types. Moved `DOM` libs to `web/tsconfig.json`; the base is platform-neutral.
+
+**MEDIUM (deferred):** see `deferred-findings.md` (`MEDIUM-2.1-A` token-presence tests, `MEDIUM-2.1-B` RN/Expo pairing verification).
+
+**LOW (deferred):**
+- `LOW-2.1-A` — `next-env.d.ts` staleness risk
+- `LOW-2.1-B` — `--prefix` flag compatibility across yarn classic
+
+**CRITICAL:** none.

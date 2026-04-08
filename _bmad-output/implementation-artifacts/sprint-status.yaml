@@ -53,7 +53,7 @@ development_status:
 
   # Epic 2: Monolith Template — Authentication & Database
   epic-2: in-progress
-  2-1-create-monolith-template-base-structure: review
+  2-1-create-monolith-template-base-structure: done
   2-2-add-clerk-authentication-with-native-supabase-third-party-auth: backlog
   2-3-add-sign-in-sign-up-pages-and-protected-route-middleware: backlog
   2-4-add-drizzle-schema-migrations-and-typed-queries: backlog

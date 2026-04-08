@@ -1,6 +1,9 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    // Web needs DOM libs; the shared base tsconfig intentionally omits them
+    // so the mobile workspace isn't polluted with browser types.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./*"]
