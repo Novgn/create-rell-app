@@ -63,7 +63,7 @@ development_status:
   epic-3: in-progress
   3-1-add-clerk-billing-with-pricing-page-and-checkout-flow: done
   3-2-add-billing-webhook-handling-and-billing-portal: done
-  3-3-add-three-tier-rbac-with-server-client-and-database-enforcement: backlog
+  3-3-add-three-tier-rbac-with-server-client-and-database-enforcement: review
   3-4-add-paywall-prompts-and-role-based-ui-gating: backlog
   epic-3-retrospective: optional
 

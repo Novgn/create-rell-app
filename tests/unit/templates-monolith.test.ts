@@ -73,6 +73,12 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/lib/billing/plan-to-role.ts',
   'web/lib/billing/event-handler.ts',
   'web/app/api/webhooks/clerk-billing/route.ts',
+  // Story 3.3 additions
+  'web/lib/auth/roles.ts',
+  'web/lib/auth/use-role.ts',
+  'web/app/api/me/role/route.ts',
+  'mobile/lib/auth/use-role.ts',
+  'shared/db/migrations/0001_rbac_helpers.sql',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -654,6 +660,83 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
       'utf8',
     );
     expect(text).toContain('UserButton');
+  });
+
+  // === Story 3.3 — Three-tier RBAC ===
+
+  it('web/lib/auth/roles.ts exports hasRole / isAdmin / isPaid with server-only guard', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'auth', 'roles.ts'), 'utf8');
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain('export async function hasRole');
+    expect(text).toContain('export async function isAdmin');
+    expect(text).toContain('export async function isPaid');
+    expect(text).toContain('getUserRoleByClerkId');
+    expect(text).toContain('getDb');
+    // isPaid must return true for super_admin (admins implicitly have paid access)
+    expect(text).toMatch(/isPaid[\s\S]*super_admin/);
+  });
+
+  it('web/lib/auth/use-role.ts is a client hook fetching /api/me/role', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'auth', 'use-role.ts'),
+      'utf8',
+    );
+    expect(text).toContain("'use client'");
+    expect(text).toContain("from '@clerk/nextjs'");
+    expect(text).toContain('useAuth');
+    expect(text).toContain("'/api/me/role'");
+    expect(text).toContain('useState');
+    expect(text).toContain('useEffect');
+    expect(text).toContain('export function useRole');
+  });
+
+  it('/api/me/role route handler reads auth() and returns JSON', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'api', 'me', 'role', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain('export async function GET');
+    expect(text).toContain("from '@clerk/nextjs/server'");
+    expect(text).toContain('auth()');
+    expect(text).toContain('status: 401');
+    expect(text).toContain('role');
+    expect(text).toContain('getCurrentUserWithRole');
+  });
+
+  it('mobile/lib/auth/use-role.ts queries Supabase directly via useSupabaseClient', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'lib', 'auth', 'use-role.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from '@clerk/clerk-expo'");
+    expect(text).toContain('useSupabaseClient');
+    expect(text).toContain("'user_roles'");
+    expect(text).toContain('clerk_user_id');
+    expect(text).toContain('export function useRole');
+  });
+
+  it('0001_rbac_helpers.sql creates is_super_admin SECURITY DEFINER function', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0001_rbac_helpers.sql'),
+      'utf8',
+    );
+    expect(text).toContain('CREATE OR REPLACE FUNCTION public.is_super_admin');
+    expect(text).toContain('SECURITY DEFINER');
+    expect(text).toContain('SET search_path = public');
+    expect(text).toContain("auth.jwt()->>'sub'");
+    expect(text).toContain("role = 'super_admin'");
+    expect(text).toContain('GRANT EXECUTE ON FUNCTION public.is_super_admin() TO authenticated');
+  });
+
+  it('0001_rbac_helpers.sql adds the select_user_roles_admin policy using the helper', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0001_rbac_helpers.sql'),
+      'utf8',
+    );
+    expect(text).toContain('CREATE POLICY "select_user_roles_admin"');
+    expect(text).toContain('public.is_super_admin()');
+    expect(text).toContain('FOR SELECT');
+    expect(text).toContain('TO authenticated');
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
