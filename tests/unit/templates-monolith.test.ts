@@ -39,8 +39,8 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/middleware.ts',
   'web/app/(auth)/sign-in/[[...sign-in]]/page.tsx',
   'web/app/(auth)/sign-up/[[...sign-up]]/page.tsx',
-  'web/app/(dashboard)/layout.tsx',
-  'web/app/(dashboard)/page.tsx',
+  'web/app/dashboard/layout.tsx',
+  'web/app/dashboard/page.tsx',
   'mobile/package.json',
   'mobile/app.json',
   'mobile/babel.config.js',
@@ -300,7 +300,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard layout uses auth() + redirects unauthenticated users', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', '(dashboard)', 'layout.tsx'),
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'layout.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@clerk/nextjs/server'");
@@ -310,10 +310,17 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard layout uses UserButton', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', '(dashboard)', 'layout.tsx'),
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'layout.tsx'),
       'utf8',
     );
     expect(text).toContain('UserButton');
+  });
+
+  it('web middleware dashboard matcher targets the real /dashboard URL (not a parenthesized group)', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'middleware.ts'), 'utf8');
+    expect(text).toContain("'/dashboard(.*)'");
+    // The parenthesized route group form is a bug — it would never match.
+    expect(text).not.toContain('/(dashboard)');
   });
 
   it('mobile (auth)/sign-in uses useSignIn from @clerk/clerk-expo', async () => {

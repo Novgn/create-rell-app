@@ -1,6 +1,6 @@
 # Story 2.3: Add Sign-In/Sign-Up Pages and Protected Route Middleware
 
-Status: review
+Status: done
 
 ## Story
 
@@ -172,3 +172,19 @@ claude-opus-4-6 (1M context)
 - `templates/monolith/mobile/app/_layout.tsx` — uses `Slot` instead of hard-coded Stack
 - `templates/monolith/mobile/app/index.tsx` — **deleted** (replaced by `(tabs)/index.tsx`)
 - `tests/unit/templates-monolith.test.ts` — 11 new tests covering middleware shape, sign-in/sign-up imports, dashboard guards, mobile auth redirect logic, and the migration away from `index.tsx` at the root
+
+### Code Review Findings (Phase 3)
+
+**HIGH (auto-fixed):**
+
+- **CRITICAL routing bug caught in review**: I initially placed the dashboard at `app/(dashboard)/page.tsx` (parenthesized route group). Next.js route groups don't affect the URL, so this would resolve to `/` — the same URL as the public landing page `app/page.tsx`, causing a "duplicate route" build error. The middleware matcher `/(dashboard)(.*)` would also never match anything because `(dashboard)` is not a real URL segment.
+- **Fix**: moved to `app/dashboard/layout.tsx` and `app/dashboard/page.tsx` (real URL `/dashboard`), updated the middleware matcher to `['/dashboard(.*)']`, added a test asserting the matcher does NOT use the buggy parenthesized form.
+
+**MEDIUM (deferred):**
+
+- Mobile sign-in form has no client-side validation (empty fields would produce a Clerk error rather than an inline message). Real apps add their own validation — scaffold keeps it minimal.
+- Mobile sign-up doesn't handle the email verification second step (comment explains).
+
+**LOW:** see deferred-findings patterns from earlier stories.
+
+**CRITICAL:** none unresolved.

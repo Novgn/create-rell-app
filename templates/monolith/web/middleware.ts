@@ -1,14 +1,14 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Protected routes match any path inside the `(dashboard)` route group.
-// The matcher also catches `/dashboard/...` rewrites automatically — route
-// groups are purely organizational and don't appear in the URL.
+// Protected routes. The dashboard lives at a real `/dashboard` URL
+// (not a parenthesized route group) because the public landing page
+// already occupies `/`. Add new protected paths to this list.
 //
 // There are NO bypass paths here. NFR7 of the PRD requires auth middleware
 // to reject unauthenticated requests to protected routes with no escape
-// hatches. Add new protected areas to this list rather than disabling auth
-// for specific files.
-const isProtectedRoute = createRouteMatcher(['/(dashboard)(.*)', '/dashboard(.*)']);
+// hatches. Add new protected areas to this matcher rather than disabling
+// auth for specific files.
+const isProtectedRoute = createRouteMatcher(['/dashboard(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
