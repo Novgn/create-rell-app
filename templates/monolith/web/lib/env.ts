@@ -1,13 +1,14 @@
-// Runtime environment variable validation for {{projectName}} (web).
+// Browser-safe environment variables for {{projectName}} (web).
 //
-// Importing this module asserts that every required key is present at
-// startup — fail fast during `next build` or `next dev` instead of
-// silently producing a broken runtime.
+// This module is imported by BOTH client and server components. It may
+// only reference `NEXT_PUBLIC_*` variables — Next.js statically replaces
+// those at build time, so they're accessible in the browser bundle.
 //
-// Add a new key here whenever you add one to `.env.example`. Keep the two
-// in sync or deploys will surprise you.
+// Server-only secrets live in `./env-server.ts`, which imports `'server-only'`
+// and throws if bundled into the browser. When you add a new secret, put
+// it there — NOT here.
 
-function required(name: string): string {
+function requiredPublic(name: string): string {
   const value = process.env[name];
   if (value === undefined || value === '') {
     throw new Error(
@@ -20,23 +21,10 @@ function required(name: string): string {
 
 export const env = {
   clerk: {
-    publishableKey: required('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'),
-    // Secret key is only read on the server — never expose to the client.
-    secretKey: required('CLERK_SECRET_KEY'),
-    // Signing secret for the Clerk Billing webhook (Story 3.2). Only the
-    // webhook route reads this; other paths do not need it — but fail fast
-    // at module load so a missing value is obvious.
-    billingWebhookSigningSecret: required('CLERK_BILLING_WEBHOOK_SIGNING_SECRET'),
+    publishableKey: requiredPublic('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'),
   },
   supabase: {
-    url: required('NEXT_PUBLIC_SUPABASE_URL'),
-    anonKey: required('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-  },
-  database: {
-    // Populated in Story 2.4 (Drizzle). Optional for Story 2.2 so the web
-    // app can boot without a database during auth-only development.
-    // Returns `undefined` rather than an empty string so downstream callers
-    // can explicit-check and fail with a clearer message at the call site.
-    url: process.env.DATABASE_URL,
+    url: requiredPublic('NEXT_PUBLIC_SUPABASE_URL'),
+    anonKey: requiredPublic('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
   },
 } as const;

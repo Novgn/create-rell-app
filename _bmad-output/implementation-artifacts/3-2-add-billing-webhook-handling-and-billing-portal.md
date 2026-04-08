@@ -1,6 +1,6 @@
 # Story 3.2: Add Billing Webhook Handling and Billing Portal
 
-Status: review
+Status: done
 
 ## Story
 
@@ -152,3 +152,20 @@ claude-opus-4-6 (1M context)
 - `templates/monolith/web/lib/env.ts` — added `clerk.billingWebhookSigningSecret`
 - `templates/monolith/web/app/dashboard/billing/page.tsx` — added Clerk `<UserButton />` note
 - `tests/unit/templates-monolith.test.ts` — 11 new tests covering pinned svix, env key, plan mapping, event branches, raw-body requirement, signature failure path, generic error responses, and the UserButton note
+
+### Code Review Findings (Phase 3)
+
+**HIGH (auto-fixed):**
+
+- **Browser-side secret-env crash**: `web/lib/env.ts` was imported by the browser Supabase client (Story 2.2) and called `required('CLERK_SECRET_KEY')` at module evaluation. Next.js replaces `process.env.NEXT_PUBLIC_*` at build but leaves other `process.env.X` as `undefined` in the browser — so every browser-side import would throw. Story 3.2 added yet another server-only key, making the bug harder to ignore.
+- **Fix**: split `env.ts` into:
+  - `lib/env.ts` — browser-safe, only `NEXT_PUBLIC_*` values
+  - `lib/env-server.ts` — `import 'server-only'` guard, all secret values (CLERK_SECRET_KEY, CLERK_BILLING_WEBHOOK_SIGNING_SECRET, DATABASE_URL)
+- Webhook route updated to import `serverEnv` from `env-server.ts`.
+- Added a test asserting `env.ts` contains only `NEXT_PUBLIC_*` keys and never references server secrets.
+
+**MEDIUM:** none requiring fix.
+
+**LOW:** deferred per earlier stories.
+
+**CRITICAL:** none.

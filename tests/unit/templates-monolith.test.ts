@@ -69,6 +69,7 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/lib/auth/current-user.ts',
   'web/app/dashboard/billing/page.tsx',
   // Story 3.2 additions
+  'web/lib/env-server.ts',
   'web/lib/billing/plan-to-role.ts',
   'web/lib/billing/event-handler.ts',
   'web/app/api/webhooks/clerk-billing/route.ts',
@@ -223,12 +224,17 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('saveToken');
   });
 
-  it('web/lib/env.ts validates all required clerk + supabase keys', async () => {
+  it('web/lib/env.ts validates public (NEXT_PUBLIC_) keys; server secrets live in env-server.ts', async () => {
     const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
     expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
-    expect(text).toContain('CLERK_SECRET_KEY');
     expect(text).toContain('NEXT_PUBLIC_SUPABASE_URL');
     expect(text).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+    const serverText = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'env-server.ts'),
+      'utf8',
+    );
+    expect(serverText).toContain('CLERK_SECRET_KEY');
   });
 
   it('mobile/lib/env.ts validates all required EXPO_PUBLIC keys', async () => {
@@ -529,10 +535,24 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.dependencies['svix']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('web/lib/env.ts reads CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
+  it('web/lib/env-server.ts reads CLERK_BILLING_WEBHOOK_SIGNING_SECRET behind server-only guard', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env-server.ts'), 'utf8');
+    expect(text).toContain("import 'server-only'");
     expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
     expect(text).toContain('billingWebhookSigningSecret');
+    expect(text).toContain('CLERK_SECRET_KEY');
+    expect(text).toContain('export const serverEnv');
+  });
+
+  it('web/lib/env.ts is browser-safe and does not reference server secrets', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
+    expect(text).not.toContain("import 'server-only'");
+    expect(text).not.toContain('CLERK_SECRET_KEY');
+    expect(text).not.toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
+    // Only NEXT_PUBLIC_* keys allowed in the browser-safe env.
+    expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
+    expect(text).toContain('NEXT_PUBLIC_SUPABASE_URL');
+    expect(text).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
   });
 
   it('plan-to-role.ts maps paid_tier to paid and defaults unknown to free', async () => {

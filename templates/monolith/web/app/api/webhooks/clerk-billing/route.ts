@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { Webhook } from 'svix';
 
 import { handleBillingEvent, type ClerkBillingEvent } from '@/lib/billing/event-handler';
-import { env } from '@/lib/env';
+import { serverEnv } from '@/lib/env-server';
 
 // Clerk Billing webhook endpoint for {{projectName}}.
 //
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   let verifiedEvent: ClerkBillingEvent;
   try {
-    const wh = new Webhook(env.clerk.billingWebhookSigningSecret);
+    const wh = new Webhook(serverEnv.clerk.billingWebhookSigningSecret);
     verifiedEvent = wh.verify(rawBody, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
