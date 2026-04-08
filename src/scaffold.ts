@@ -22,6 +22,7 @@
 import fs from 'fs-extra';
 import { posix as posixPath, resolve as platformResolve, sep as platformSep } from 'node:path';
 
+import { getPackageManagerCommands } from './install.ts';
 import type { ResolvedInputs } from './prompts.ts';
 
 /**
@@ -300,14 +301,25 @@ function assertContained(childPosixPath: string, targetPosixPath: string): void 
  * Build the substitution variable map from the resolved inputs. Exported so
  * tests can verify the kebab transform without invoking the full scaffold.
  *
+ * Variables produced:
+ *   - `projectName`         — exact user input, used in file contents
+ *   - `projectNameKebab`    — kebab-cased project name
+ *   - `pmInstallCmd`        — e.g. `pnpm install`
+ *   - `pmRunCmd`            — e.g. `pnpm run`
+ *   - `pmExecCmd`           — e.g. `pnpm dlx`
+ *
  * Note: `projectName` here is the **content** value used for in-file
  * substitutions and is allowed to contain spaces / punctuation. Path-segment
  * substitutions go through `substitutePathSegment` which rejects separators.
  */
 export function buildSubstitutionVars(resolvedInputs: ResolvedInputs): Record<string, string> {
+  const pmCommands = getPackageManagerCommands(resolvedInputs.pm);
   return {
     projectName: resolvedInputs.projectName,
     projectNameKebab: toKebabCase(resolvedInputs.projectName),
+    pmInstallCmd: pmCommands.install,
+    pmRunCmd: pmCommands.run,
+    pmExecCmd: pmCommands.exec,
   };
 }
 

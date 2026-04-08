@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { buildProgram, runCli } from '../../src/index.ts';
 import type { PromptDriver, ResolvedInputs } from '../../src/prompts.ts';
 import type { ScaffoldResult } from '../../src/scaffold.ts';
+import type { ProcessRunner } from '../../src/install.ts';
+import { InstallFailedError } from '../../src/install.ts';
 
 describe('buildProgram', () => {
   it('parses project name, --template, and --pm flags', () => {
@@ -235,6 +237,7 @@ describe('runCli scaffold integration', () => {
           calls.push({ templateDir, targetDir: target, resolved });
           return Promise.resolve({ filesWritten: 1, targetDir: target });
         },
+        installDeps: false,
       },
     );
 
@@ -250,5 +253,112 @@ describe('runCli scaffold integration', () => {
     expect(output).toContain('scaffolded');
     expect(output).toContain('files into');
     expect(output).toContain(targetDir);
+  });
+
+  it('runs the install runner exactly once when installDeps is true (default)', async () => {
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'my-app');
+
+    const installCalls: Array<{ command: string; cwd: string }> = [];
+    const installRunner: ProcessRunner = {
+      run(command, _args, options) {
+        installCalls.push({ command, cwd: options.cwd });
+        return Promise.resolve();
+      },
+    };
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        scaffoldRunner: (_templateDir, target) =>
+          Promise.resolve({ filesWritten: 1, targetDir: target }),
+        installRunner,
+        // installDeps defaults to true; left implicit on purpose.
+      },
+    );
+
+    expect(installCalls).toHaveLength(1);
+    expect(installCalls[0]?.command).toBe('pnpm');
+    expect(installCalls[0]?.cwd).toBe(targetDir);
+  });
+
+  it('skips the install runner when installDeps is false', async () => {
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'my-app');
+
+    const installCalls: Array<{ command: string }> = [];
+    const installRunner: ProcessRunner = {
+      run(command) {
+        installCalls.push({ command });
+        return Promise.resolve();
+      },
+    };
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        scaffoldRunner: (_templateDir, target) =>
+          Promise.resolve({ filesWritten: 1, targetDir: target }),
+        installRunner,
+        installDeps: false,
+      },
+    );
+
+    expect(installCalls).toHaveLength(0);
+  });
+
+  it('exits with code 1 when the install runner rejects with InstallFailedError', async () => {
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'my-app');
+
+    const installRunner: ProcessRunner = {
+      run() {
+        return Promise.reject(new InstallFailedError('boom'));
+      },
+    };
+
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+
+    try {
+      await expect(
+        runCli(
+          'my-app',
+          { template: 'web', pm: 'pnpm' },
+          {
+            driver: quietDriver(),
+            gatherOptions: { interactive: true },
+            templatesDir,
+            targetDirOverride: targetDir,
+            scaffoldRunner: (_templateDir, target) =>
+              Promise.resolve({ filesWritten: 1, targetDir: target }),
+            installRunner,
+            installDeps: true,
+          },
+        ),
+      ).rejects.toThrow('process.exit:1');
+      expect(errSpy).toHaveBeenCalled();
+    } finally {
+      exitSpy.mockRestore();
+      errSpy.mockRestore();
+    }
   });
 });

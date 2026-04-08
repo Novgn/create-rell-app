@@ -7,12 +7,20 @@
 // triggering argv parsing, and avoids brittle isMainModule() checks that
 // fail under symlinked global bin shims (e.g. `npm install -g`).
 
+import chalk from 'chalk';
 import { Command } from 'commander';
 import fs from 'fs-extra';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import pkg from '../package.json' with { type: 'json' };
+import {
+  cleanupLockFiles,
+  defaultProcessRunner,
+  installDependencies,
+  InstallFailedError,
+} from './install.ts';
+import type { ProcessRunner } from './install.ts';
 import {
   buildPartialInputs,
   defaultPromptDriver,
@@ -106,6 +114,9 @@ export interface RunCliDeps {
   templatesDir?: string;
   targetDirOverride?: string;
   scaffoldRunner?: ScaffoldRunner;
+  installRunner?: ProcessRunner;
+  /** Whether to install dependencies after scaffolding. Defaults to `true`. */
+  installDeps?: boolean;
 }
 
 export async function runCli(
@@ -125,6 +136,8 @@ export async function runCli(
   const gatherOptions = deps.gatherOptions ?? {};
   const templatesDir = deps.templatesDir ?? resolveTemplatesDir();
   const scaffoldRunner = deps.scaffoldRunner ?? defaultScaffoldRunner;
+  const installRunner = deps.installRunner ?? defaultProcessRunner;
+  const shouldInstallDeps = deps.installDeps ?? true;
 
   const partial = buildPartialInputs(projectName, options.template, options.pm);
 
@@ -170,6 +183,27 @@ export async function runCli(
     result.filesWritten,
     result.targetDir,
   );
+
+  if (!shouldInstallDeps) {
+    console.log(chalk.dim('[create-rell-app] skipping dependency install (installDeps=false)'));
+    return;
+  }
+
+  // Clean up stale lock files BEFORE running install so the chosen package
+  // manager doesn't get confused by leftovers from a different one.
+  await cleanupLockFiles(targetDir, resolved.pm);
+
+  console.log(chalk.cyan(`Installing dependencies with ${resolved.pm}…`));
+  try {
+    await installDependencies(targetDir, resolved.pm, installRunner);
+    console.log(chalk.green('Done.'));
+  } catch (err) {
+    if (err instanceof InstallFailedError) {
+      console.error(chalk.red(`Install failed: ${err.message}`));
+      process.exit(1);
+    }
+    throw err;
+  }
 }
 
 /**
