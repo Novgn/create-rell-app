@@ -277,8 +277,13 @@ describe('runCli scaffold integration', () => {
         gatherOptions: { interactive: true },
         templatesDir,
         targetDirOverride: targetDir,
-        scaffoldRunner: (_templateDir, target) =>
-          Promise.resolve({ filesWritten: 1, targetDir: target }),
+        // The fake scaffoldRunner mirrors the real scaffoldProject by
+        // creating the targetDir, so the install step's existence check
+        // passes.
+        scaffoldRunner: async (_templateDir, target) => {
+          await mkdir(target, { recursive: true });
+          return { filesWritten: 1, targetDir: target };
+        },
         installRunner,
         // installDeps defaults to true; left implicit on purpose.
       },
@@ -348,8 +353,10 @@ describe('runCli scaffold integration', () => {
             gatherOptions: { interactive: true },
             templatesDir,
             targetDirOverride: targetDir,
-            scaffoldRunner: (_templateDir, target) =>
-              Promise.resolve({ filesWritten: 1, targetDir: target }),
+            scaffoldRunner: async (_templateDir, target) => {
+              await mkdir(target, { recursive: true });
+              return { filesWritten: 1, targetDir: target };
+            },
             installRunner,
             installDeps: true,
           },

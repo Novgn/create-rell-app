@@ -56,6 +56,7 @@ describe('PACKAGE_MANAGER_COMMANDS', () => {
   it('npm record', () => {
     expect(getPackageManagerCommands('npm')).toEqual({
       install: 'npm install',
+      installArgv: { binary: 'npm', args: ['install'] },
       run: 'npm run',
       exec: 'npx',
       lockFile: 'package-lock.json',
@@ -65,6 +66,7 @@ describe('PACKAGE_MANAGER_COMMANDS', () => {
   it('pnpm record', () => {
     expect(getPackageManagerCommands('pnpm')).toEqual({
       install: 'pnpm install',
+      installArgv: { binary: 'pnpm', args: ['install'] },
       run: 'pnpm run',
       exec: 'pnpm dlx',
       lockFile: 'pnpm-lock.yaml',
@@ -74,6 +76,7 @@ describe('PACKAGE_MANAGER_COMMANDS', () => {
   it('yarn record', () => {
     expect(getPackageManagerCommands('yarn')).toEqual({
       install: 'yarn install',
+      installArgv: { binary: 'yarn', args: ['install'] },
       run: 'yarn run',
       exec: 'yarn dlx',
       lockFile: 'yarn.lock',
@@ -118,6 +121,27 @@ describe('installDependencies', () => {
     const { runner } = makeRecordingRunner({ fail: true, failWith: wrapped });
 
     await expect(installDependencies(tempRoot, 'npm', runner)).rejects.toBe(wrapped);
+  });
+
+  it('rejects with InstallFailedError when targetDir does not exist', async () => {
+    const { runner, calls } = makeRecordingRunner();
+    const missing = join(tempRoot, 'does-not-exist');
+
+    await expect(installDependencies(missing, 'npm', runner)).rejects.toBeInstanceOf(
+      InstallFailedError,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('rejects with InstallFailedError when targetDir is a file', async () => {
+    const { runner, calls } = makeRecordingRunner();
+    const filePath = join(tempRoot, 'a-file');
+    await writeFile(filePath, '', 'utf8');
+
+    await expect(installDependencies(filePath, 'npm', runner)).rejects.toThrow(
+      /not a directory/,
+    );
+    expect(calls).toHaveLength(0);
   });
 });
 

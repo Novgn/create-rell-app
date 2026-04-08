@@ -23,9 +23,11 @@ import { join } from 'node:path';
 import type { PackageManagerName } from './index.ts';
 
 export interface PackageManagerCommands {
-  /** Full install command, e.g. `npm install`. */
+  /** Full install command as a display string, e.g. `"npm install"`. */
   readonly install: string;
-  /** Run-script prefix, e.g. `npm run`. */
+  /** Install command broken into its argv components for execa/spawn. */
+  readonly installArgv: { readonly binary: string; readonly args: ReadonlyArray<string> };
+  /** Run-script prefix as a display string, e.g. `"npm run"`. */
   readonly run: string;
   /** Package executor, e.g. `npx` / `pnpm dlx` / `yarn dlx`. */
   readonly exec: string;
@@ -41,18 +43,21 @@ export interface PackageManagerCommands {
 export const PACKAGE_MANAGER_COMMANDS: Readonly<Record<PackageManagerName, PackageManagerCommands>> = {
   npm: {
     install: 'npm install',
+    installArgv: { binary: 'npm', args: ['install'] },
     run: 'npm run',
     exec: 'npx',
     lockFile: 'package-lock.json',
   },
   pnpm: {
     install: 'pnpm install',
+    installArgv: { binary: 'pnpm', args: ['install'] },
     run: 'pnpm run',
     exec: 'pnpm dlx',
     lockFile: 'pnpm-lock.yaml',
   },
   yarn: {
     install: 'yarn install',
+    installArgv: { binary: 'yarn', args: ['install'] },
     run: 'yarn run',
     exec: 'yarn dlx',
     lockFile: 'yarn.lock',
@@ -129,20 +134,32 @@ export const defaultProcessRunner: ProcessRunner = {
  * Install dependencies in `targetDir` using the chosen package manager.
  * Returns when the subprocess exits successfully; rejects with
  * `InstallFailedError` otherwise.
+ *
+ * Verifies that `targetDir` exists and is a directory before invoking the
+ * runner — otherwise execa would emit a confusing low-level ENOENT.
  */
 export async function installDependencies(
   targetDir: string,
   pm: PackageManagerName,
   runner: ProcessRunner = defaultProcessRunner,
 ): Promise<void> {
-  const commands = getPackageManagerCommands(pm);
-  const [binary, ...rest] = commands.install.split(' ');
-  if (!binary) {
-    // This is impossible given our hard-coded constants but the typeguard
-    // satisfies the strict TS check below.
-    throw new InstallFailedError(`Empty install command for package manager: ${pm}`);
+  let stat;
+  try {
+    stat = await fs.stat(targetDir);
+  } catch (err) {
+    throw new InstallFailedError(
+      `Cannot install dependencies — target directory does not exist: ${targetDir}`,
+      { cause: err },
+    );
   }
-  await runner.run(binary, rest, { cwd: targetDir });
+  if (!stat.isDirectory()) {
+    throw new InstallFailedError(
+      `Cannot install dependencies — target path is not a directory: ${targetDir}`,
+    );
+  }
+
+  const { binary, args } = getPackageManagerCommands(pm).installArgv;
+  await runner.run(binary, args, { cwd: targetDir });
 }
 
 /**

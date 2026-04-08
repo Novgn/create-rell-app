@@ -67,3 +67,39 @@ Tests run with platform-native paths and don't explicitly verify Windows backsla
 The scaffold engine has no `.gitignore`-style exclusion mechanism. If a template ever needs to exclude files (e.g. example envs that should never ship), there's no built-in way.
 
 **Why deferred:** Templates own their own file lists. No current need.
+
+---
+
+## Story 1.4 — Package Manager Abstraction
+
+### MEDIUM-1.4-A: No yarn 1 vs yarn 4 distinction
+
+**Source:** `src/install.ts`, `PACKAGE_MANAGER_COMMANDS.yarn`
+
+The `yarn dlx` exec command is yarn 2+. Yarn classic (1.x) does not have `dlx` and needs `npx` instead. We don't detect or document this.
+
+**Why deferred:** Yarn 4 is the current stable. Most modern users won't be on yarn 1. If a user does run into this, the README can be updated to call out the assumption. A real fix would detect the installed yarn major version at scaffold time.
+
+### MEDIUM-1.4-B: No timeout on the install subprocess
+
+**Source:** `src/install.ts`, `defaultProcessRunner`
+
+A hung install (e.g. waiting on a postinstall script that wants keyboard input) would block the CLI forever.
+
+**Why deferred:** Story 1.5 owns hardening. Realistic threat is low — modern package managers don't generally prompt during install.
+
+### LOW-1.4-A: `defaultProcessRunner` is not unit-tested
+
+**Source:** `tests/unit/install.test.ts`
+
+Unit tests exclusively use injected fake runners. The default `execa`-backed runner's ENOENT branch is untested.
+
+**Why deferred:** Real subprocess spawning is integration-test territory. Smoke tests in Story 6.1 will exercise the default runner against real binaries.
+
+### LOW-1.4-B: `runCli` is getting long; could extract `executeScaffoldFlow()` helper
+
+**Source:** `src/index.ts`, `runCli()`
+
+After Stories 1.3 and 1.4, `runCli` does prompt → scaffold → cleanup → install in a single function. A helper would clarify the flow.
+
+**Why deferred:** Refactor opportunity for Story 1.5 cleanup pass — when we add validation it'll be a natural breakpoint.

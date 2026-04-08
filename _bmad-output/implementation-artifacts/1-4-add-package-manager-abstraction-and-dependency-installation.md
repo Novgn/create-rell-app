@@ -1,6 +1,6 @@
 # Story 1.4: Add Package Manager Abstraction and Dependency Installation
 
-Status: review
+Status: done
 
 ## Story
 
@@ -166,3 +166,16 @@ claude-opus-4-6 (1M context)
 - `src/scaffold.ts` — `buildSubstitutionVars` now also injects pm-related tokens
 - `src/index.ts` — `runCli()` now installs dependencies (and cleans lock files) by default; new `installRunner` and `installDeps` deps; `InstallFailedError` → exit 1
 - `tests/unit/cli.test.ts` — added 3 install-path tests (default install, opt-out, error handling)
+
+### Code Review Findings (Phase 3)
+
+**HIGH (auto-fixed):**
+
+- **Fragile install command split**: `commands.install.split(' ')` worked for current strings but felt ad hoc. Refactored to store install commands as `installArgv: { binary: string; args: string[] }` tuples — `installDependencies` now reads them directly without string parsing.
+- **`installDependencies` lacks targetDir validation**: would surface a confusing low-level execa error if called with a non-existent path. Added `fs.stat` check up front that throws `InstallFailedError` with a clear message.
+
+**MEDIUM (deferred):** see `deferred-findings.md` (`MEDIUM-1.4-A` yarn 1/4 distinction, `MEDIUM-1.4-B` install timeout).
+
+**LOW (deferred):** see `deferred-findings.md` (`LOW-1.4-A` no test for default execa runner, `LOW-1.4-B` `runCli` length refactor).
+
+**CRITICAL:** none. Subprocess invocation already uses argv arrays (no shell injection).
