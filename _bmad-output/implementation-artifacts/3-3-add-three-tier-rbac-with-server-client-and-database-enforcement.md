@@ -1,6 +1,6 @@
 # Story 3.3: Add Three-Tier RBAC with Server, Client, and Database Enforcement
 
-Status: review
+Status: done
 
 ## Story
 
@@ -148,3 +148,17 @@ claude-opus-4-6 (1M context)
 **Modified (1):**
 
 - `tests/unit/templates-monolith.test.ts` — 6 new tests covering server helpers, web hook, API endpoint, mobile hook, SECURITY DEFINER function, and admin policy
+
+### Code Review Findings (Phase 3)
+
+**No CRITICAL/HIGH unresolved findings.**
+
+**MEDIUM (accepted):**
+- `isPaid` and `hasRole` each fetch the `user_roles` row independently — 2 queries if called back-to-back. Acceptable for starter code; add caching in production.
+- Web `useRole()` has no client-side cache (SWR/React Query). Acceptable.
+
+**LOW (deferred):** DB-fetch deduplication and `currentUserHasRole` coverage.
+
+**INFO:** SECURITY DEFINER function uses `SET search_path = public` — hardens against search_path hijacking per Supabase best practices.
+
+**CRITICAL:** none. Closes the Story 2.4 recursive-policy deferral.
