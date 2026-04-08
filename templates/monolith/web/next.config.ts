@@ -2,10 +2,10 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // Story 2.4 will add `transpilePackages: ['@{{projectNameKebab}}/shared']`
-  // once the shared workspace actually exports code that web imports
-  // (Drizzle schema, typed queries). Leaving it out for now avoids a
-  // dangling dependency on an empty package.
+  // Transpile the local workspace package so Next.js can import Drizzle
+  // schema and typed queries as raw TypeScript. Without this, Next would
+  // refuse to handle the `.ts` source files from `shared/`.
+  transpilePackages: ['@{{projectNameKebab}}/shared'],
 };
 
 export default nextConfig;

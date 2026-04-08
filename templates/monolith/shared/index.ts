@@ -1,11 +1,14 @@
 // @{{projectNameKebab}}/shared — barrel export.
 //
 // This package holds code used by both `web/` and `mobile/`:
-//   - Drizzle schema + typed queries (added in Story 2.4)
-//   - Shared TypeScript types (added as needed)
-//   - RBAC role constants (added in Story 3.3)
+//   - Drizzle schema + typed queries (Story 2.4)
+//   - RBAC role constants (also Story 2.4 via schema.ROLES)
+//   - Shared TypeScript types are inferred from the schema
 //
-// For now this file is intentionally empty — exporting nothing is valid and
-// keeps downstream imports unbroken until real code lands.
+// Web and mobile both import via `@{{projectNameKebab}}/shared` thanks to
+// the npm workspaces setup in the root package.json. Next.js picks up the
+// raw TypeScript via `transpilePackages` in web/next.config.ts.
 
-export {};
+export * from './db/schema';
+export * from './db/queries';
+export type { DbClient } from './db/client';

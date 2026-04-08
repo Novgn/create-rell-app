@@ -59,6 +59,12 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'shared/package.json',
   'shared/tsconfig.json',
   'shared/index.ts',
+  // Story 2.4 additions
+  'shared/drizzle.config.ts',
+  'shared/db/schema.ts',
+  'shared/db/client.ts',
+  'shared/db/queries.ts',
+  'shared/db/migrations/0000_initial.sql',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -362,6 +368,104 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile/app/index.tsx was removed (replaced by (tabs)/index.tsx)', async () => {
     await expect(stat(join(MONOLITH_DIR, 'mobile', 'app', 'index.tsx'))).rejects.toBeDefined();
+  });
+
+  // === Story 2.4 — Drizzle schema, queries, migrations ===
+
+  it('shared/package.json pins drizzle-orm, postgres, drizzle-kit', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const exact = /^\d+\.\d+\.\d+$/;
+    expect(parsed.dependencies['drizzle-orm']).toMatch(exact);
+    expect(parsed.dependencies['postgres']).toMatch(exact);
+    expect(parsed.devDependencies['drizzle-kit']).toMatch(exact);
+  });
+
+  it('shared/db/schema.ts defines user_roles table with correct columns and naming', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'schema.ts'), 'utf8');
+    // Table name — relax whitespace matching by searching for the literal
+    // first-arg string anywhere in the file.
+    expect(text).toMatch(/pgTable\(\s*'user_roles'/);
+    // Column names (snake_case strings) — Drizzle uses `.text('clerk_user_id')`
+    expect(text).toContain("'clerk_user_id'");
+    expect(text).toContain("'created_at'");
+    expect(text).toContain("'updated_at'");
+    // Index name
+    expect(text).toContain('idx_user_roles_clerk_user_id');
+    // Role enum
+    expect(text).toContain("'super_admin'");
+    expect(text).toContain("'paid'");
+    expect(text).toContain("'free'");
+  });
+
+  it('shared/db/schema.ts exports UserRole + NewUserRole + Role types', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'schema.ts'), 'utf8');
+    expect(text).toContain('export type UserRole');
+    expect(text).toContain('export type NewUserRole');
+    expect(text).toContain('export type Role');
+    expect(text).toContain('$inferSelect');
+    expect(text).toContain('$inferInsert');
+  });
+
+  it('shared/db/client.ts uses drizzle + postgres and reads DATABASE_URL', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'client.ts'), 'utf8');
+    expect(text).toContain("from 'drizzle-orm/postgres-js'");
+    expect(text).toContain("from 'postgres'");
+    expect(text).toContain('DATABASE_URL');
+    expect(text).toContain('export const db');
+  });
+
+  it('shared/db/queries.ts exports typed select + upsert helpers', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'queries.ts'), 'utf8');
+    expect(text).toContain('getUserRoleByClerkId');
+    expect(text).toContain('setUserRole');
+    expect(text).toContain('eq');
+    expect(text).toContain('onConflictDoUpdate');
+    expect(text).toContain('returning');
+  });
+
+  it('shared/db/migrations/0000_initial.sql creates user_roles with RLS + auth.jwt sub policy', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0000_initial.sql'),
+      'utf8',
+    );
+    expect(text).toContain('CREATE TABLE');
+    expect(text).toContain('user_roles');
+    expect(text).toContain('ENABLE ROW LEVEL SECURITY');
+    expect(text).toContain("auth.jwt()->>'sub'");
+    expect(text).toContain('select_user_roles_own');
+    expect(text).toContain('select_user_roles_admin');
+    expect(text).toContain('CREATE POLICY');
+    expect(text).toContain("'super_admin'");
+  });
+
+  it('shared/index.ts re-exports schema and queries', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'index.ts'), 'utf8');
+    expect(text).toContain("from './db/schema'");
+    expect(text).toContain("from './db/queries'");
+  });
+
+  it('web/next.config.ts transpiles @{{projectNameKebab}}/shared', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'next.config.ts'), 'utf8');
+    expect(text).toContain('transpilePackages');
+    expect(text).toContain('@{{projectNameKebab}}/shared');
+  });
+
+  it('monolith root package.json has db:generate / db:migrate / db:studio scripts', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8');
+    expect(text).toContain('db:generate');
+    expect(text).toContain('db:migrate');
+    expect(text).toContain('db:studio');
+  });
+
+  it('shared/drizzle.config.ts points at the schema and Postgres dialect', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'drizzle.config.ts'), 'utf8');
+    expect(text).toContain("schema: './db/schema.ts'");
+    expect(text).toContain("dialect: 'postgresql'");
+    expect(text).toContain('DATABASE_URL');
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
