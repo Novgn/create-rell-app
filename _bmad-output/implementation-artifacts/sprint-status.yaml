@@ -55,7 +55,7 @@ development_status:
   epic-2: in-progress
   2-1-create-monolith-template-base-structure: done
   2-2-add-clerk-authentication-with-native-supabase-third-party-auth: done
-  2-3-add-sign-in-sign-up-pages-and-protected-route-middleware: review
+  2-3-add-sign-in-sign-up-pages-and-protected-route-middleware: done
   2-4-add-drizzle-schema-migrations-and-typed-queries: backlog
   epic-2-retrospective: optional
 
