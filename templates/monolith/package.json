@@ -1,0 +1,15 @@
+{
+  "name": "{{projectName}}",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["web", "mobile", "shared"],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:web": "{{pmRunCmd}} --prefix web dev",
+    "dev:mobile": "{{pmRunCmd}} --prefix mobile start",
+    "build:web": "{{pmRunCmd}} --prefix web build",
+    "typecheck": "tsc -b web mobile shared --noEmit"
+  }
+}

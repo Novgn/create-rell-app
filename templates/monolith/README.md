@@ -1,0 +1,61 @@
+# {{projectName}}
+
+Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewonder3/create-rell-app). Next.js web + Expo mobile sharing schema and types through a local `shared` workspace.
+
+## Layout
+
+```
+{{projectName}}/
+├── web/      # Next.js 16 App Router (auth, billing, dashboard)
+├── mobile/   # Expo / React Native client
+├── shared/   # Drizzle schema + shared TypeScript types
+├── .env.example
+├── package.json  # workspace root
+└── tsconfig.base.json
+```
+
+## Getting started
+
+1. Install dependencies:
+
+   ```sh
+   {{pmInstallCmd}}
+   ```
+
+2. Copy `.env.example` to `.env.local` and fill in the Clerk + Supabase keys (see comments in the file for required variables).
+
+3. Start the web dev server:
+
+   ```sh
+   {{pmRunCmd}} dev:web
+   ```
+
+4. Start the mobile dev server (separate terminal):
+
+   ```sh
+   {{pmRunCmd}} dev:mobile
+   ```
+
+## Stack
+
+- **Auth:** Clerk + Supabase native third-party auth
+- **Database:** Supabase Postgres + Drizzle ORM
+- **Web:** Next.js 16 App Router, React 19, Tailwind CSS, shadcn/ui
+- **Mobile:** Expo 55, Expo Router, React Native, NativeWind
+- **State:** Zustand with persistence
+- **Forms:** React Hook Form + Zod
+
+## Useful commands
+
+| Command | Description |
+|---|---|
+| `{{pmRunCmd}} dev:web` | Run the Next.js dev server |
+| `{{pmRunCmd}} dev:mobile` | Run the Expo dev server |
+| `{{pmRunCmd}} build:web` | Build the Next.js production bundle |
+| `{{pmRunCmd}} typecheck` | Typecheck all three workspaces |
+| `{{pmExecCmd}} drizzle-kit generate` | Generate a new Drizzle migration (added in Story 2.4) |
+
+## Notes
+
+- Auth integration uses Clerk's **native** Supabase third-party auth. Do **not** use the deprecated `getToken({ template: 'supabase' })` pattern.
+- Dependencies are pinned to exact versions — update them in groups (`web/package.json`, `mobile/package.json`, `shared/package.json`) rather than running floating-range updates.

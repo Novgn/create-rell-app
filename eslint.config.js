@@ -13,6 +13,13 @@ export default tseslint.config(
       '_bmad-output/**',
       '.claude/**',
       'templates/**',
+      // Scaffolded output left in the repo root during local CLI testing.
+      // These are generated projects, not CLI source, so ESLint should skip
+      // them entirely (they'll have their own nested lint configs).
+      'my-project/**',
+      'my-app/**',
+      'my-saas-app/**',
+      'test-project/**',
     ],
   },
   js.configs.recommended,

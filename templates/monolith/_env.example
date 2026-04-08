@@ -1,0 +1,23 @@
+# {{projectName}} — environment variables template
+#
+# Copy this file to `.env.local` at the monolith root and fill in values
+# before running the app. Never commit real credentials — the generated
+# .gitignore already excludes `.env*` (except this example file).
+#
+# Keys are documented in full in Story 2.2 (Clerk + Supabase) and Story 3.1
+# (Clerk Billing). The shape below is the minimum you need for the web
+# dev server to start.
+
+# ---------------------------------------------------------------------------
+# Clerk (auth) — populated in Story 2.2
+# ---------------------------------------------------------------------------
+# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+# CLERK_SECRET_KEY=
+
+# ---------------------------------------------------------------------------
+# Supabase (database, storage, RLS) — populated in Story 2.2
+# ---------------------------------------------------------------------------
+# NEXT_PUBLIC_SUPABASE_URL=
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=
+# SUPABASE_SERVICE_ROLE_KEY=
+# DATABASE_URL=

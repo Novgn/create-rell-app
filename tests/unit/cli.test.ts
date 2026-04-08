@@ -95,13 +95,16 @@ describe('buildProgram', () => {
 
 describe('runCli (action handler)', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
+  let legacyTempRoot: string;
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    legacyTempRoot = mkdtempSync(join(tmpdir(), 'crapp-legacy-cli-'));
   });
 
   afterEach(() => {
     logSpy.mockRestore();
+    rmSync(legacyTempRoot, { recursive: true, force: true });
   });
 
   function makeRecordingDriver(
@@ -135,7 +138,19 @@ describe('runCli (action handler)', () => {
   it('logs the resolved project name, template, and package manager when all flags are provided', async () => {
     const { driver, selectCallCount } = makeRecordingDriver();
 
-    await runCli('my-project', { template: 'monolith', pm: 'pnpm' }, driver, { interactive: true });
+    await runCli(
+      'my-project',
+      { template: 'monolith', pm: 'pnpm' },
+      {
+        driver,
+        gatherOptions: { interactive: true },
+        // Point at an empty templates dir so the scaffold step takes the
+        // "template not yet bundled" branch and we don't touch cwd.
+        templatesDir: join(legacyTempRoot, 'empty-templates'),
+        targetDirOverride: join(legacyTempRoot, 'out-my-project'),
+        installDeps: false,
+      },
+    );
 
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
     expect(output).toContain('my-project');
@@ -148,7 +163,17 @@ describe('runCli (action handler)', () => {
   it('prompts for missing template and package manager when no flags are provided', async () => {
     const { driver, selectCallCount } = makeRecordingDriver(['web', 'npm']);
 
-    await runCli('minimal-project', {}, driver, { interactive: true });
+    await runCli(
+      'minimal-project',
+      {},
+      {
+        driver,
+        gatherOptions: { interactive: true },
+        templatesDir: join(legacyTempRoot, 'empty-templates'),
+        targetDirOverride: join(legacyTempRoot, 'out-minimal'),
+        installDeps: false,
+      },
+    );
 
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
     expect(output).toContain('minimal-project');
@@ -162,7 +187,17 @@ describe('runCli (action handler)', () => {
     // sanitized to undefined and the prompts shown.
     const { driver, selectCallCount } = makeRecordingDriver(['mobile', 'yarn']);
 
-    await runCli('my-project', { template: 'react', pm: 'bun' }, driver, { interactive: true });
+    await runCli(
+      'my-project',
+      { template: 'react', pm: 'bun' },
+      {
+        driver,
+        gatherOptions: { interactive: true },
+        templatesDir: join(legacyTempRoot, 'empty-templates'),
+        targetDirOverride: join(legacyTempRoot, 'out-reprompt'),
+        installDeps: false,
+      },
+    );
 
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
     expect(output).toContain('mobile');
