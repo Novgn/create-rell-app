@@ -153,8 +153,8 @@ claude-opus-4-6 (1M context)
 - **`postgres` client singleton** with `prepare: false` for Supabase pgbouncer transaction-mode compatibility. Module-level caching avoids connection pool thrash.
 - **RLS policies** in `0000_initial.sql`:
   - `select_user_roles_own` — users can read their own row via `auth.jwt()->>'sub' = clerk_user_id`
-  - `select_user_roles_admin` — super_admin god-mode reads all rows via EXISTS subquery
   - `insert_user_roles_service` / `update_user_roles_service` — authenticated clients cannot mutate; only service-role writes allowed
+  - **Super_admin god-mode read policy is intentionally deferred** to Story 3.3 — the naive EXISTS subquery form recurses into its own table through RLS, and the correct fix (`SECURITY DEFINER` helper function) belongs in the RBAC story
 - **Every policy references `auth.jwt()->>'sub'`** — matches Clerk native 3P auth. The deprecated-pattern test still passes after adding this migration.
 - **`transpilePackages`** restored in `web/next.config.ts` now that shared has real TypeScript code that web imports.
 - **Shared barrel** re-exports `./db/schema` and `./db/queries` so downstream callers write `import { userRoles, getUserRoleByClerkId } from '@{{projectNameKebab}}/shared'`.
@@ -181,3 +181,18 @@ claude-opus-4-6 (1M context)
 - `templates/monolith/web/next.config.ts` — transpilePackages restored
 - `templates/monolith/package.json` — db:* scripts
 - `tests/unit/templates-monolith.test.ts` — 10 new tests covering pinned deps, schema shape, type derivation, client setup, query exports, RLS policies, transpilePackages wiring, and drizzle config
+
+### Code Review Findings (Phase 3)
+
+**CRITICAL (auto-fixed):**
+
+- **Recursive RLS admin policy**: the `select_user_roles_admin` policy queried `user_roles` inside its own USING clause, which would trigger RLS recursively. Removed from the 0000 migration; Story 3.3 will introduce a `SECURITY DEFINER` `is_super_admin()` helper function that bypasses RLS internally and then reference it in a safe policy.
+
+**HIGH (auto-fixed):**
+
+- **Module-load throw on missing `DATABASE_URL`**: `shared/db/client.ts` previously opened the Postgres connection pool at module load. Any downstream import (including `next build`) would fail on machines without the env set. Refactored to a lazy `getDb()` function that reads env and opens the pool on first use, then memoizes via a module-level cache.
+- **`shared/index.ts` now exports `getDb`** alongside `DbClient`, so downstream callers write `import { getDb } from '@{{projectNameKebab}}/shared'`.
+
+**LOW (deferred):** see `deferred-findings.md` (`LOW-2.4-A` db:drop/reset scripts, `LOW-2.4-B` drizzle.config.ts empty-string fallback).
+
+**CRITICAL unresolved:** none.
