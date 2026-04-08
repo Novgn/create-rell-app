@@ -102,4 +102,40 @@ Unit tests exclusively use injected fake runners. The default `execa`-backed run
 
 After Stories 1.3 and 1.4, `runCli` does prompt → scaffold → cleanup → install in a single function. A helper would clarify the flow.
 
-**Why deferred:** Refactor opportunity for Story 1.5 cleanup pass — when we add validation it'll be a natural breakpoint.
+**Why deferred:** ~~Refactor opportunity for Story 1.5 cleanup pass — when we add validation it'll be a natural breakpoint.~~ **RESOLVED in Story 1.5** — `executeScaffoldFlow()` helper extracted.
+
+---
+
+## Story 1.5 — Validation & Exit Codes
+
+### MEDIUM-1.5-A: TOCTOU between target-dir check and scaffold
+
+**Source:** `src/validation.ts`, `assertTargetDirSafe`
+
+There's a window between `fs.readdir(targetDir).length === 0` and the scaffold writing files. A concurrent process could populate the directory in between.
+
+**Why deferred:** Single-user CLI, low realistic threat. Fixing would require taking a directory lock (rare in Node CLI tools).
+
+### MEDIUM-1.5-B: No end-to-end test for friendly drop-and-reprompt path through `runCli`
+
+**Source:** `tests/unit/cli.test.ts`
+
+Story 1.2's `prompts.test.ts` covers the drop-unknown-flag-value behavior in `gatherInputs` directly. There's no end-to-end `runCli` test that exercises invalid flag → reprompt → resolved value in interactive mode.
+
+**Why deferred:** Unit-level coverage is sufficient. The integration path is exercised by the existing "drops invalid flag values and re-prompts via the driver" cli test which uses `interactive: true`.
+
+### LOW-1.5-A: `validateProjectName` regex and error message are duplicated knowledge
+
+**Source:** `src/validation.ts`, `PROJECT_NAME_PATTERN` and the matching error string
+
+The regex pattern lives in one constant but the error message describing the rules is hand-written. Updating one without the other would silently drift.
+
+**Why deferred:** The pattern is unlikely to change. A test would catch drift if it occurred.
+
+### LOW-1.5-B: Scoped npm names rejected
+
+**Source:** `src/validation.ts`, `validateProjectName`
+
+`@scope/name` is rejected because of the `/`. This is intentional — `create-rell-app` scaffolds applications, not publishable libraries — but it's worth documenting that the project name → directory name → optional `package.json` name is a single value.
+
+**Why not a bug:** Documented decision. Users can still edit `package.json` post-scaffold.

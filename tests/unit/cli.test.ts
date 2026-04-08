@@ -58,6 +58,7 @@ describe('buildProgram', () => {
     expect(help).toContain('<project-name>');
     expect(help).toContain('--template');
     expect(help).toContain('--pm');
+    expect(help).toContain('--no-install');
   });
 
   it('throws on missing required positional argument when exitOverride is set', () => {

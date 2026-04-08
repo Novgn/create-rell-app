@@ -1,6 +1,6 @@
 # Story 1.5: Add Error Handling, Validation, and Exit Codes
 
-Status: review
+Status: done
 
 ## Story
 
@@ -180,4 +180,22 @@ claude-opus-4-6 (1M context)
 - `src/prompts.ts` — `PromptDriver` interface gains `confirm()`; default driver wraps `@inquirer/prompts.confirm` with the existing Ctrl+C handler
 - `src/index.ts` — `runCli` adds validation gate + target-dir guard + `--no-install` handling; refactored to extract `executeScaffoldFlow()`; new top-level try/catch for `ValidationError`; `--no-install` added to Commander
 - `tests/unit/prompts.test.ts` — fake driver gets a no-op `confirm` to satisfy the new interface
-- `tests/unit/cli.test.ts` — fake drivers get `confirm`; added 2 buildProgram tests (`--no-install`) and 6 runCli validation/guard tests
+- `tests/unit/cli.test.ts` — fake drivers get `confirm`; added 2 buildProgram tests (`--no-install`), 6 runCli validation/guard tests, and `--no-install` mention in the `helpInformation` test
+
+### Code Review Findings (Phase 3)
+
+**HIGH:** none requiring fix. The `process.exit` inside try/catch pattern works correctly in production (exit doesn't return); test mocks throw which is intentional behavior for `expect(...).rejects.toThrow('process.exit:1')`.
+
+**MEDIUM (deferred):** see `deferred-findings.md`:
+- `MEDIUM-1.5-A` — TOCTOU on target-dir empty check
+- `MEDIUM-1.5-B` — no end-to-end runCli test for the friendly drop-and-reprompt path (unit coverage is sufficient)
+
+**LOW (deferred):**
+- `LOW-1.5-A` — regex/message duplication
+- `LOW-1.5-B` — scoped npm names rejected (intentional design decision)
+
+**LOW (auto-fixed):** Added `--no-install` to the `helpInformation()` test to cover help-output documentation.
+
+**Semgrep scan:** 0 findings on `src/validation.ts`, `src/index.ts`, `src/install.ts`.
+
+**CRITICAL:** none.
