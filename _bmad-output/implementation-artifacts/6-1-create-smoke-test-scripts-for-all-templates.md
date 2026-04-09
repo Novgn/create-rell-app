@@ -1,6 +1,6 @@
 # Story 6.1: Create Smoke Test Scripts for All Templates
 
-Status: review
+Status: done
 
 ## Story
 
