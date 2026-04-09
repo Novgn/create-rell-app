@@ -1,0 +1,88 @@
+# CI pipeline for create-rell-app (Story 6.2).
+#
+# Two jobs run in sequence:
+#
+#   check  — fast (~30s): typecheck + lint + unit tests on ubuntu
+#   smoke  — slow (~10m): scaffold all 3 templates, install, build, lint,
+#            typecheck per-template on ubuntu + macos
+#
+# The smoke job only runs if check passes so we don't waste runner minutes
+# on template validation when the CLI source itself is broken.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight CI runs when a newer commit lands on the same branch.
+# Saves runner minutes on force-pushes and rapid iteration.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Disable Husky's `prepare` hook in CI — the runner's checkout is not
+  # an interactive git repo and we don't need commit hooks here.
+  HUSKY: '0'
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # Fast checks: CLI source quality
+  # ──────────────────────────────────────────────────────────────────────
+  check:
+    name: Typecheck · Lint · Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Smoke tests: scaffold + install + build + lint + typecheck per template
+  # ──────────────────────────────────────────────────────────────────────
+  smoke:
+    name: Smoke (${{ matrix.os }})
+    needs: check
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke tests
+        run: npm run test:smoke

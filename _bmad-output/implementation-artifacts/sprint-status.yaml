@@ -85,6 +85,6 @@ development_status:
   # Epic 6: CI/CD, Smoke Tests & npm Publishing
   epic-6: in-progress
   6-1-create-smoke-test-scripts-for-all-templates: done
-  6-2-set-up-github-actions-ci-pipeline: backlog
+  6-2-set-up-github-actions-ci-pipeline: done
   6-3-configure-npm-publish-pipeline-and-cli-readme: backlog
   epic-6-retrospective: optional
