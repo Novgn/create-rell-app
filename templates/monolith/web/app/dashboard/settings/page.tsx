@@ -1,0 +1,17 @@
+import { ProfileForm } from '@/components/forms/ProfileForm';
+
+// Demo settings route for Story 4.2. The page itself stays a Server Component
+// so Clerk's `auth()` context and layout gating from Story 2.3 still apply;
+// the form is a client component rendered as a child.
+export default function SettingsPage() {
+  return (
+    <section>
+      <h1>Profile settings</h1>
+      <p>
+        Example React Hook Form + Zod wiring. The schema lives in{' '}
+        <code>@{{projectNameKebab}}/shared</code> so mobile can reuse it.
+      </p>
+      <ProfileForm />
+    </section>
+  );
+}

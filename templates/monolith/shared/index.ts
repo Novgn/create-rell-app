@@ -12,3 +12,8 @@
 export * from './db/schema';
 export * from './db/queries';
 export { getDb, type DbClient } from './db/client';
+
+// Shared Zod schemas — added in Story 4.2. Both web and mobile derive their
+// form types from these schemas, and any server route accepting the same
+// payloads should validate against them too.
+export * from './validation/profile-form';

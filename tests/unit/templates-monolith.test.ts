@@ -89,6 +89,12 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/stores/app-store.ts',
   'web/components/shared/OnboardingGreeting.tsx',
   'mobile/stores/app-store.ts',
+  // Story 4.2 additions
+  'shared/validation/profile-form.ts',
+  'web/components/forms/ProfileForm.tsx',
+  'web/app/dashboard/settings/page.tsx',
+  'mobile/components/forms/ProfileForm.tsx',
+  'mobile/app/(tabs)/settings.tsx',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -971,6 +977,141 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['zustand']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['react-native-mmkv']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  // === Story 4.2 — React Hook Form + Zod ===
+
+  it('shared profile-form schema uses z.object and derives its type via z.infer', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'shared', 'validation', 'profile-form.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from 'zod'");
+    expect(text).toContain('export const profileFormSchema');
+    expect(text).toContain('z.object');
+    expect(text).toContain('export type ProfileFormValues');
+    expect(text).toContain('z.infer<typeof profileFormSchema>');
+  });
+
+  it('shared profile-form schema defines displayName + bio + website with validation', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'shared', 'validation', 'profile-form.ts'),
+      'utf8',
+    );
+    expect(text).toContain('displayName');
+    expect(text).toContain('.min(2');
+    expect(text).toContain('.max(60');
+    expect(text).toContain('bio');
+    expect(text).toContain('.max(280');
+    expect(text).toContain('website');
+    expect(text).toContain('.url(');
+  });
+
+  it('shared/index.ts re-exports the profile-form schema', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'index.ts'), 'utf8');
+    expect(text).toContain("from './validation/profile-form'");
+  });
+
+  it('shared/package.json pins zod', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'shared', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['zod']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('web ProfileForm is a client component using useForm + zodResolver', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("'use client'");
+    expect(text).toContain("from 'react-hook-form'");
+    expect(text).toContain("from '@hookform/resolvers/zod'");
+    expect(text).toContain('useForm');
+    expect(text).toContain('zodResolver(profileFormSchema)');
+  });
+
+  it('web ProfileForm imports the shared schema via the workspace package', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('@{{projectNameKebab}}/shared');
+    expect(text).toContain('profileFormSchema');
+    expect(text).toContain('ProfileFormValues');
+  });
+
+  it('web ProfileForm renders inline per-field error messages with role="alert"', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('role="alert"');
+    expect(text).toContain('errors.displayName');
+    expect(text).toContain('errors.bio');
+    expect(text).toContain('errors.website');
+  });
+
+  it('web settings page renders <ProfileForm />', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'settings', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from '@/components/forms/ProfileForm'");
+    expect(text).toContain('<ProfileForm />');
+  });
+
+  it('mobile ProfileForm uses Controller (RHF pattern for uncontrolled RN inputs)', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'components', 'forms', 'ProfileForm.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from 'react-hook-form'");
+    expect(text).toContain('Controller');
+    expect(text).toContain("from 'react-native'");
+    expect(text).toContain('TextInput');
+  });
+
+  it('mobile ProfileForm imports the shared schema via the workspace package', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'components', 'forms', 'ProfileForm.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('@{{projectNameKebab}}/shared');
+    expect(text).toContain('profileFormSchema');
+    expect(text).toContain('ProfileFormValues');
+  });
+
+  it('mobile settings tab renders <ProfileForm />', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', 'settings.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('ProfileForm');
+    expect(text).toContain('../../components/forms/ProfileForm');
+  });
+
+  it('mobile tabs layout registers the settings tab', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', '_layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('name="settings"');
+  });
+
+  it('web package.json pins react-hook-form, @hookform/resolvers, zod', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['react-hook-form']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['@hookform/resolvers']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['zod']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('mobile package.json pins react-hook-form, @hookform/resolvers, zod', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['react-hook-form']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['@hookform/resolvers']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['zod']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
