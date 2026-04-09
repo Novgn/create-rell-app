@@ -68,11 +68,11 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Monolith Template — Application Foundation & DX
-  epic-4: backlog
-  4-1-add-zustand-state-management-with-persistence: backlog
-  4-2-add-react-hook-form-with-zod-validation-and-example-form: backlog
-  4-3-add-shadcn-ui-nativewind-skeleton-loaders-and-tailwind: backlog
-  4-4-add-eslint-prettier-husky-configuration-and-inline-comments: backlog
+  epic-4: done
+  4-1-add-zustand-state-management-with-persistence: done
+  4-2-add-react-hook-form-with-zod-validation-and-example-form: done
+  4-3-add-shadcn-ui-nativewind-skeleton-loaders-and-tailwind: done
+  4-4-add-eslint-prettier-husky-configuration-and-inline-comments: done
   epic-4-retrospective: optional
 
   # Epic 5: Solo Templates & Cross-Template Consistency
