@@ -111,6 +111,10 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'mobile/metro.config.js',
   'mobile/nativewind-env.d.ts',
   'mobile/components/shared/SkeletonCard.tsx',
+  // Story 4.4 additions — ESLint, Prettier, Husky
+  '_husky/pre-commit',
+  'web/eslint.config.mjs',
+  'mobile/eslint.config.mjs',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -1344,6 +1348,126 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.dependencies['react-native-reanimated']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
+  // === Story 4.4 — ESLint, Prettier, Husky, DX ===
+
+  it('_husky/pre-commit runs lint-staged', async () => {
+    const text = await readFile(join(MONOLITH_DIR, '_husky', 'pre-commit'), 'utf8');
+    expect(text).toContain('lint-staged');
+  });
+
+  it('root package.json has lint, format, format:check, prepare scripts', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      scripts: Record<string, string>;
+    };
+    expect(parsed.scripts['lint']).toBeDefined();
+    expect(parsed.scripts['format']).toBe('prettier --write .');
+    expect(parsed.scripts['format:check']).toBe('prettier --check .');
+    expect(parsed.scripts['prepare']).toBe('husky');
+  });
+
+  it('root package.json declares lint-staged and prettier config blocks', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      'lint-staged': Record<string, string[] | string>;
+      prettier: Record<string, unknown>;
+    };
+    expect(parsed['lint-staged']).toBeDefined();
+    expect(parsed.prettier).toBeDefined();
+    expect(parsed.prettier['singleQuote']).toBe(true);
+    expect(parsed['lint-staged']['*.{ts,tsx}']).toBeDefined();
+  });
+
+  it('root package.json pins husky, lint-staged, prettier, eslint, typescript-eslint, eslint-config-next', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      devDependencies: Record<string, string>;
+    };
+    const exact = /^\d+\.\d+\.\d+$/;
+    expect(parsed.devDependencies['husky']).toMatch(exact);
+    expect(parsed.devDependencies['lint-staged']).toMatch(exact);
+    expect(parsed.devDependencies['prettier']).toMatch(exact);
+    expect(parsed.devDependencies['eslint']).toMatch(exact);
+    expect(parsed.devDependencies['typescript-eslint']).toMatch(exact);
+    expect(parsed.devDependencies['eslint-config-next']).toMatch(exact);
+    expect(parsed.devDependencies['eslint-config-prettier']).toMatch(exact);
+  });
+
+  it('web eslint.config.mjs extends eslint-config-next/flat and eslint-config-prettier', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'eslint.config.mjs'),
+      'utf8',
+    );
+    expect(text).toContain("from 'eslint-config-next/flat'");
+    expect(text).toContain("from 'eslint-config-prettier'");
+    expect(text).toContain('no-explicit-any');
+  });
+
+  it('mobile eslint.config.mjs uses typescript-eslint + prettier disable', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'eslint.config.mjs'),
+      'utf8',
+    );
+    expect(text).toContain("from 'typescript-eslint'");
+    expect(text).toContain("from 'eslint-config-prettier'");
+    expect(text).toContain('__DEV__');
+    expect(text).toContain('no-explicit-any');
+  });
+
+  it('tsconfig.base.json enables strict + noUncheckedIndexedAccess', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'tsconfig.base.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      compilerOptions: Record<string, unknown>;
+    };
+    expect(parsed.compilerOptions['strict']).toBe(true);
+    expect(parsed.compilerOptions['noUncheckedIndexedAccess']).toBe(true);
+    expect(parsed.compilerOptions['noImplicitOverride']).toBe(true);
+  });
+
+  it('_gitignore excludes .env files, secrets, and .husky/_ internal dir', async () => {
+    const text = await readFile(join(MONOLITH_DIR, '_gitignore'), 'utf8');
+    expect(text).toContain('.env');
+    expect(text).toContain('.env.local');
+    expect(text).toContain('!.env.example');
+    expect(text).toContain('credentials.json');
+    expect(text).toContain('*.pem');
+    expect(text).toContain('*.key');
+    expect(text).toContain('.husky/_');
+  });
+
+  it('supabase client.ts comments explain native 3P auth and warn against deprecated JWT template', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'lib', 'supabase', 'client.ts'),
+      'utf8',
+    );
+    // The comment block must mention the native callback AND explicitly
+    // warn against the deprecated JWT template pattern.
+    expect(text).toMatch(/native[^\n]*(third-party|3P)/i);
+    expect(text).toContain('accessToken');
+    expect(text).toContain('deprecated');
+  });
+
+  it('initial migration comments explain RLS construction and auth.jwt sub', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0000_initial.sql'),
+      'utf8',
+    );
+    expect(text).toContain('RLS');
+    expect(text).toContain("auth.jwt()->>'sub'");
+    expect(text).toContain('deprecated');
+  });
+
+  it('clerk-billing route.ts comments explain signature validation on raw body', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    // Comments must mention signature validation running before JSON parse.
+    expect(text).toMatch(/signature[^\n]*BEFORE/i);
+    expect(text).toContain('raw');
+    expect(text).toContain('HMAC');
+  });
+
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
     const filesToCheck: string[] = [];
     async function walk(dir: string): Promise<void> {
@@ -1455,6 +1579,27 @@ describe('templates/monolith end-to-end scaffold', () => {
     expect(files).toContain('.env.example');
     expect(files).not.toContain('_gitignore');
     expect(files).not.toContain('_env.example');
+  });
+
+  it('renames _husky directory to .husky and ships the pre-commit hook (Story 4.4)', async () => {
+    await scaffoldProject({
+      templateDir: MONOLITH_DIR,
+      targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'monolith', pm: 'pnpm' },
+    });
+
+    const files = await walkAllFiles(targetDir);
+    expect(files).toContain('.husky/pre-commit');
+    // The underscore-prefixed path must not leak through.
+    expect(files.some((f) => f.startsWith('_husky/'))).toBe(false);
+
+    // Hook content should be the minimal husky v9 form — no husky.sh source.
+    const hookText = await readFile(
+      join(targetDir, '.husky', 'pre-commit'),
+      'utf8',
+    );
+    expect(hookText).toContain('lint-staged');
+    expect(hookText).not.toContain('husky.sh');
   });
 
   it('substitutes projectName correctly across web + mobile entry files', async () => {

@@ -10,13 +10,22 @@ dist
 build
 *.tsbuildinfo
 
-# Environment files
+# Environment files & secrets — NEVER commit real credentials. The .env.example
+# file is intentionally tracked so new contributors see the required keys.
 .env
 .env.local
 .env.*.local
 .env.development.local
 .env.production.local
 !.env.example
+credentials.json
+*.pem
+*.key
+service-account*.json
+
+# Husky internal directory — husky v9 generates its own `_/` subfolder on
+# install and expects it to be gitignored.
+.husky/_
 
 # Logs
 npm-debug.log*

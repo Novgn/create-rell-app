@@ -143,6 +143,10 @@ describe('renameSpecialFiles', () => {
     expect(renameSpecialFiles('_env.example')).toBe('.env.example');
   });
 
+  it('renames _husky directory to .husky (Story 4.4)', () => {
+    expect(renameSpecialFiles('_husky')).toBe('.husky');
+  });
+
   it('passes regular filenames through unchanged', () => {
     expect(renameSpecialFiles('package.json')).toBe('package.json');
   });

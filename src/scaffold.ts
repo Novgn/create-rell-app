@@ -63,17 +63,24 @@ export const BINARY_EXTENSIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Special template filenames that get renamed at scaffold time. Used to
- * smuggle files past npm's tarball publishing rules — npm strips real
- * `.gitignore` and `.npmrc` files when including a package, so templates ship
- * them under placeholder names and we restore the leading dot here.
+ * Special template filenames (and directory names) that get renamed at
+ * scaffold time. Used to smuggle dotfile-style entries past npm's tarball
+ * publishing rules — npm strips real `.gitignore` and `.npmrc` files when
+ * including a package, so templates ship them under placeholder names and
+ * we restore the leading dot here.
  *
- * Extend this table when more files need the same treatment.
+ * This rename is applied to BOTH file and directory segments in
+ * `walkAndCopy`, which is why `_husky` → `.husky` works — the whole
+ * directory (and everything beneath it) ends up under a dot-prefixed path
+ * in the scaffold output.
+ *
+ * Extend this table when more files or directories need the same treatment.
  */
 const SPECIAL_FILENAME_RENAMES: ReadonlyMap<string, string> = new Map([
   ['_gitignore', '.gitignore'],
   ['_npmrc', '.npmrc'],
   ['_env.example', '.env.example'],
+  ['_husky', '.husky'],
 ]);
 
 export interface ScaffoldOptions {
