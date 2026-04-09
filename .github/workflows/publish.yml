@@ -1,0 +1,91 @@
+# npm publish pipeline for create-rell-app (Story 6.3).
+#
+# Triggers on version tags (v*). Runs the full smoke test suite as a
+# gate, then builds and publishes to the npm public registry with
+# provenance attestation.
+#
+# Prerequisites:
+#   1. Create an npm Automation token at https://www.npmjs.com/settings/tokens
+#   2. Add it as a repository secret named NPM_TOKEN in GitHub repo settings
+
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Only one publish can run at a time for any tag.
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HUSKY: '0'
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # Gate: smoke tests must pass before publishing
+  # ──────────────────────────────────────────────────────────────────────
+  smoke:
+    name: Smoke tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Smoke tests
+        run: npm run test:smoke
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Publish: build and push to npm with provenance
+  # ──────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish
+    needs: smoke
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
