@@ -76,10 +76,10 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Solo Templates & Cross-Template Consistency
-  epic-5: backlog
-  5-1-extract-solo-web-template-from-monolith: backlog
-  5-2-extract-solo-mobile-template-from-monolith: backlog
-  5-3-validate-cross-template-consistency: backlog
+  epic-5: done
+  5-1-extract-solo-web-template-from-monolith: done
+  5-2-extract-solo-mobile-template-from-monolith: done
+  5-3-validate-cross-template-consistency: done
   epic-5-retrospective: optional
 
   # Epic 6: CI/CD, Smoke Tests & npm Publishing
