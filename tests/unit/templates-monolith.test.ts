@@ -95,6 +95,22 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/app/dashboard/settings/page.tsx',
   'mobile/components/forms/ProfileForm.tsx',
   'mobile/app/(tabs)/settings.tsx',
+  // Story 4.3 additions — web Tailwind + shadcn
+  'web/postcss.config.mjs',
+  'web/components.json',
+  'web/lib/cn.ts',
+  'web/components/ui/Button.tsx',
+  'web/components/ui/Card.tsx',
+  'web/components/ui/Skeleton.tsx',
+  'web/components/shared/SkeletonCard.tsx',
+  'web/components/shared/SkeletonTable.tsx',
+  'web/app/dashboard/loading.tsx',
+  // Story 4.3 additions — mobile NativeWind
+  'mobile/tailwind.config.js',
+  'mobile/global.css',
+  'mobile/metro.config.js',
+  'mobile/nativewind-env.d.ts',
+  'mobile/components/shared/SkeletonCard.tsx',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -1112,6 +1128,220 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.dependencies['react-hook-form']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['@hookform/resolvers']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['zod']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  // === Story 4.3 — Tailwind 4, shadcn base components, NativeWind ===
+
+  it('web postcss.config.mjs registers @tailwindcss/postcss', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'postcss.config.mjs'), 'utf8');
+    expect(text).toContain('@tailwindcss/postcss');
+  });
+
+  it('web globals.css imports Tailwind v4 CSS-first', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'globals.css'),
+      'utf8',
+    );
+    expect(text).toContain("@import 'tailwindcss'");
+  });
+
+  it('web cn.ts combines clsx + tailwind-merge', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'cn.ts'), 'utf8');
+    expect(text).toContain("from 'clsx'");
+    expect(text).toContain("from 'tailwind-merge'");
+    expect(text).toContain('twMerge(clsx');
+    expect(text).toContain('export function cn');
+  });
+
+  it('web components.json is a valid shadcn config pointing to cn alias', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'components.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      tsx: boolean;
+      rsc: boolean;
+      aliases: { ui: string; utils: string };
+      tailwind: { css: string };
+    };
+    expect(parsed.tsx).toBe(true);
+    expect(parsed.rsc).toBe(true);
+    expect(parsed.aliases.ui).toBe('@/components/ui');
+    expect(parsed.aliases.utils).toBe('@/lib/cn');
+    expect(parsed.tailwind.css).toBe('app/globals.css');
+  });
+
+  it('web Button uses cn() and forwardRef', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'ui', 'Button.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from '@/lib/cn'");
+    expect(text).toContain('forwardRef');
+    expect(text).toContain('cn(');
+    expect(text).toContain('variantClasses');
+  });
+
+  it('web Card exports Card, CardHeader, CardTitle, CardContent', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'ui', 'Card.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('export function Card');
+    expect(text).toContain('export function CardHeader');
+    expect(text).toContain('export function CardTitle');
+    expect(text).toContain('export function CardContent');
+    expect(text).toContain('cn(');
+  });
+
+  it('web Skeleton primitive uses animate-pulse and is aria-hidden', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'ui', 'Skeleton.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('animate-pulse');
+    expect(text).toContain('aria-hidden');
+    expect(text).toContain('cn(');
+  });
+
+  it('web SkeletonCard composes base Skeleton + Card primitives', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'shared', 'SkeletonCard.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from '@/components/ui/Card'");
+    expect(text).toContain("from '@/components/ui/Skeleton'");
+    expect(text).toContain('aria-busy');
+  });
+
+  it('web SkeletonTable accepts rowCount and marks the region aria-busy', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'shared', 'SkeletonTable.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('rowCount');
+    expect(text).toContain('aria-busy');
+    expect(text).toContain('Array.from');
+  });
+
+  it('web dashboard loading.tsx renders SkeletonCard as route-level loader', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'loading.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('SkeletonCard');
+    expect(text).toContain('@/components/shared/SkeletonCard');
+    expect(text).toContain('<main');
+    expect(text).toContain('aria-label');
+  });
+
+  it('web dashboard layout uses semantic <header>, <nav aria-label>, and <main>', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('<header');
+    expect(text).toContain('<nav aria-label="Primary"');
+    expect(text).toContain('<main');
+    expect(text).toContain('aria-label="Dashboard content"');
+  });
+
+  it('web billing page uses aria-labelledby on the section heading', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'billing', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('aria-labelledby="billing-heading"');
+    expect(text).toContain('id="billing-heading"');
+  });
+
+  it('web package.json pins tailwindcss, @tailwindcss/postcss, tailwind-merge, clsx', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(parsed.devDependencies['tailwindcss']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.devDependencies['@tailwindcss/postcss']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['tailwind-merge']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['clsx']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('mobile tailwind.config.js uses the NativeWind preset and targets app/components globs', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'tailwind.config.js'),
+      'utf8',
+    );
+    expect(text).toContain("require('nativewind/preset')");
+    expect(text).toContain('./app/**/*.{ts,tsx}');
+    expect(text).toContain('./components/**/*.{ts,tsx}');
+  });
+
+  it('mobile global.css contains the Tailwind directives', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'global.css'), 'utf8');
+    expect(text).toContain('@tailwind base');
+    expect(text).toContain('@tailwind components');
+    expect(text).toContain('@tailwind utilities');
+  });
+
+  it('mobile metro.config.js wraps the Expo config with withNativeWind', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'metro.config.js'),
+      'utf8',
+    );
+    expect(text).toContain("require('expo/metro-config')");
+    expect(text).toContain("require('nativewind/metro')");
+    expect(text).toContain('withNativeWind');
+    expect(text).toContain("input: './global.css'");
+  });
+
+  it('mobile babel.config.js chains nativewind/babel after babel-preset-expo', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'babel.config.js'),
+      'utf8',
+    );
+    expect(text).toContain('babel-preset-expo');
+    expect(text).toContain("jsxImportSource: 'nativewind'");
+    expect(text).toContain("'nativewind/babel'");
+  });
+
+  it('mobile nativewind-env.d.ts references nativewind/types', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'nativewind-env.d.ts'),
+      'utf8',
+    );
+    expect(text).toContain('/// <reference types="nativewind/types" />');
+  });
+
+  it('mobile tsconfig.json includes nativewind-env.d.ts', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'tsconfig.json'), 'utf8');
+    expect(text).toContain('nativewind-env.d.ts');
+  });
+
+  it('mobile root layout imports global.css so Metro picks up NativeWind styles', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '_layout.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("import '../global.css'");
+  });
+
+  it('mobile SkeletonCard uses className (NativeWind) on RN primitives', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'components', 'shared', 'SkeletonCard.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("from 'react-native'");
+    expect(text).toContain('className=');
+    expect(text).toContain('accessibilityRole');
+  });
+
+  it('mobile package.json pins nativewind, tailwindcss, react-native-reanimated', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(parsed.dependencies['nativewind']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.devDependencies['tailwindcss']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['react-native-reanimated']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {

@@ -1,12 +1,22 @@
 /*
- * Global styles for the web workspace.
+ * Global stylesheet for the web workspace.
  *
- * Tailwind CSS + shadcn/ui land in Story 4.3. Until then this file is the
- * single global stylesheet referenced by the root layout.
+ * Tailwind 4 is configured CSS-first: one `@import "tailwindcss"` line is
+ * enough — there is intentionally no tailwind.config.ts here. Design tokens
+ * live inside a `@theme {}` block below and can be extended by adding CSS
+ * custom properties. The PostCSS plugin in postcss.config.mjs picks this up
+ * automatically.
  */
 
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0;
 }

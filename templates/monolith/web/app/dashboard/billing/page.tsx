@@ -19,8 +19,10 @@ export default async function BillingPage() {
   const current = await getCurrentUserWithRole();
 
   return (
-    <section>
-      <h1>Billing</h1>
+    <section aria-labelledby="billing-heading" className="flex flex-col gap-4">
+      <h1 id="billing-heading" className="text-2xl font-semibold">
+        Billing
+      </h1>
       <p>
         Current plan: <strong>{current?.role ?? 'free'}</strong>
       </p>
@@ -30,7 +32,7 @@ export default async function BillingPage() {
         database and your access elevates on the next page load.
       </p>
       <PricingTable />
-      <p style={{ marginTop: '1.5rem', fontSize: '0.875rem', opacity: 0.7 }}>
+      <p className="mt-6 text-sm opacity-70">
         To manage an existing subscription (change plan, update payment
         method, cancel), open the Clerk user menu in the header —
         subscription management lives alongside your account settings
