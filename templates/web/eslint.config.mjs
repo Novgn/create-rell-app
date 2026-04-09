@@ -1,20 +1,30 @@
 // Flat ESLint config for {{projectName}}.
 //
-// Uses `eslint-config-next/flat` — the flat-config entry point of Next.js's
-// shared config — and appends `eslint-config-prettier` so ESLint does not
-// fight Prettier over formatting rules. `npm run lint` invokes `next lint`,
-// which reads this file.
+// In Next.js 16, `eslint-config-next` ships as a flat-config array directly
+// from the package default export (no `/flat` subpath, no factory function).
+// We spread that array and append `eslint-config-prettier` so ESLint does
+// not fight Prettier over formatting rules. `npm run lint` invokes
+// `eslint .` directly — Next.js 16 removed the `next lint` subcommand.
 //
-// Keep the rules list short: project-specific rules that aren't covered by
-// the Next.js baseline go in the `rules` block below.
+// The custom rules block below re-declares the `@typescript-eslint` plugin
+// because ESLint 10 flat config scopes plugin registrations to the config
+// object they're declared in. `eslint-config-next` only registers the
+// plugin under `files: ['**/*.ts','**/*.tsx']`, so our rules — which also
+// only apply to TS files — must declare it locally for the rule namespace
+// lookup to resolve.
 
-import next from 'eslint-config-next/flat';
+import next from 'eslint-config-next';
 import prettier from 'eslint-config-prettier';
+import tseslint from 'typescript-eslint';
 
 export default [
-  ...next(),
+  ...next,
   prettier,
   {
+    files: ['**/*.ts', '**/*.tsx'],
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
     rules: {
       // PRD NFR / architecture: strict TypeScript — no `any` anywhere.
       '@typescript-eslint/no-explicit-any': 'error',

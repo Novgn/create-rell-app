@@ -107,7 +107,11 @@ describe('templates/web static file shape (Story 5.1)', () => {
     // Merged scripts from monolith root + web workspace
     expect(parsed.scripts['dev']).toBe('next dev');
     expect(parsed.scripts['build']).toBe('next build');
-    expect(parsed.scripts['lint']).toBe('next lint');
+    // Story 6.1: Next.js 16 removed the `next lint` subcommand — invoke
+    // ESLint directly via the flat config. The eslint.config.mjs still
+    // extends `eslint-config-next/flat`, just without going through the
+    // deprecated CLI wrapper.
+    expect(parsed.scripts['lint']).toBe('eslint .');
     expect(parsed.scripts['format']).toBe('prettier --write .');
     expect(parsed.scripts['prepare']).toBe('husky');
     expect(parsed.scripts['db:generate']).toBe('drizzle-kit generate');

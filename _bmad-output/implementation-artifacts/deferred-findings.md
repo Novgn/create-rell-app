@@ -235,3 +235,104 @@ Would be useful during dev to wipe + re-migrate the local database.
 `process.env.DATABASE_URL ?? ''` silently runs drizzle-kit with an empty URL, which produces a less-clear error than throwing up front.
 
 **Why deferred:** Drizzle Kit is a dev tool — the failure mode is visible enough. Changing this would complicate the config in exchange for minor UX improvement.
+
+---
+
+## Story 6.1 — Smoke Test Runner
+
+### MEDIUM-6.1-A: Smoke runner emits ANSI colors unconditionally
+
+**Source:** `tests/smoke/smoke-test.mjs`, `logHeader` / `logOk` / `logFail`
+
+The runner writes raw `\u001b[...m` escapes regardless of whether stdout is a TTY. In CI log aggregators and file redirects the escapes appear as literal noise.
+
+**Why deferred:** Harmless in practice. Next time someone touches the runner, add `const isTTY = process.stdout.isTTY ?? false;` and gate the color constants on it.
+
+### LOW-6.1-A: `parseTemplatesFlag` only accepts `--templates=value` form
+
+**Source:** `tests/smoke/smoke-helpers.mjs`, `parseTemplatesFlag`
+
+Most Node CLIs accept both `--templates=web` and `--templates web` (space-separated). Only the equals form works today.
+
+**Why deferred:** The only documented call site is `npm run test:smoke -- --templates=web`, which is unambiguous.
+
+### LOW-6.1-B: No `--help` flag in the smoke runner
+
+**Source:** `tests/smoke/smoke-test.mjs`, `main`
+
+Unknown flags (including `--help`) are silently ignored. A user discovering the script for the first time has no in-band way to see the template list or KEEP_SMOKE_OUTPUT env.
+
+**Why deferred:** The header comment of the file documents invocation; `--help` is a nice-to-have not a must-have for internal tooling.
+
+### LOW-6.1-C: `INSTALL_ENV` applied to all subprocess steps, not just install
+
+**Source:** `tests/smoke/smoke-test.mjs`, `runStep`
+
+`HUSKY=0` only needs to be set during `npm install` — lint/build/typecheck don't care. Keeping it in the env for all steps is conceptually overbroad but harmless.
+
+**Why deferred:** Correct behavior, just slightly imprecise naming. A rename to `SUBPROCESS_ENV` with a comment would resolve this.
+
+### LOW-6.1-D: 10-minute timeout reused for `ensureCliBuilt`
+
+**Source:** `tests/smoke/smoke-test.mjs`, `ensureCliBuilt`
+
+tsup builds in ~10ms; 600,000ms is six orders of magnitude too generous. Not a bug, just obviously wrong unit.
+
+**Why deferred:** Doesn't affect correctness, and a shorter timeout risks false negatives on slow CI machines.
+
+### INFO-6.1-A: No retry logic for transient network failures
+
+**Source:** `tests/smoke/smoke-test.mjs`, `runStep` (install step)
+
+A flaky npm registry or slow mirror will fail the run without retry. GitHub Actions workflows typically add their own retry layer; doing it here too would duplicate that.
+
+**Why deferred:** Defer retry logic to the CI workflow layer (Story 6.2).
+
+### INFO-6.1-B: No runtime Node version check
+
+**Source:** `tests/smoke/smoke-test.mjs`
+
+If a user invokes `node tests/smoke/smoke-test.mjs` on Node ≤21 they'll hit opaque syntax errors rather than a helpful "requires Node 22+" message. `package.json` engines handles the `npm install` path but not direct `node` invocation.
+
+**Why deferred:** npm install enforces engines for anyone installing this package. Direct `node` invocation is developer-only, and developers on this repo already track the engines field.
+
+---
+
+## Template Compatibility Bugs Discovered by Story 6.1 Smoke Tests
+
+These were found by running the new smoke runner against the web template and belong to the templates (originating in Stories 4.4 / 5.1), not to the smoke runner. Several were fixed in-scope during Story 6.1 because they blocked verification of the runner itself; the remainder are deferred as their own cluster for a follow-up polish pass.
+
+### Fixed in-scope during Story 6.1
+
+- **`next lint` removed in Next.js 16.** Both `templates/web/package.json` and `templates/monolith/web/package.json` pinned `next@16.2.2` but retained `"lint": "next lint"`. Fixed to `"lint": "eslint ."`.
+- **`eslint-config-next/flat` subpath removed in 16.x.** The 16.x default export is now a flat-config array directly, not a factory function from a `/flat` subpath. Both web `eslint.config.mjs` files updated to `import next from 'eslint-config-next'` and `...next`.
+- **`@typescript-eslint` plugin scoping in ESLint 10 flat config.** `eslint-config-next` registers the plugin under `files: ['**/*.ts','**/*.tsx']`, which doesn't satisfy rule references from a different config object. Both web eslint configs now re-declare `plugins: { '@typescript-eslint': tseslint.plugin }` in the custom rules block with a matching `files` pattern.
+- **ESLint 10 + `eslint-plugin-react` incompatibility.** ESLint 10 removed `context.getFilename()`; `eslint-plugin-react@7.x` (transitively required by `eslint-config-next`) still uses the old API and errors out with `TypeError: contextOrFilename.getFilename is not a function`. Fixed by pinning `eslint` and `@eslint/js` to `9.39.4` in all three templates (web, mobile, monolith root). ESLint 9 is the current stable that the ecosystem supports.
+
+### Deferred (discovered but out of scope for 6.1)
+
+### HIGH-6.1-T1: `lib/auth/use-role.ts` triggers `react-hooks/set-state-in-effect`
+
+**Source:** `templates/web/lib/auth/use-role.ts:33` (and monolith equivalent)
+
+The hook calls `setRole(null)` and `setIsLoading(false)` synchronously inside `useEffect`, which `eslint-plugin-react-hooks` flags as an anti-pattern. The template ships with real ESLint errors that `npm run lint` surfaces.
+
+**Why deferred:** Fixing this requires a rewrite of the role-loading state machine (probably via a derived value or `useSyncExternalStore`-style subscription). That's Story 4.4 or a new story's territory — not the smoke runner's scope.
+
+**Impact if unfixed:** Story 6.2 CI will fail on lint until this is addressed. Either fix the template, skip lint in the smoke matrix for web, or mark the CI job non-blocking temporarily.
+
+### MEDIUM-6.1-T2: `import/no-anonymous-default-export` warning on generated `eslint.config.mjs`
+
+**Source:** `templates/web/eslint.config.mjs` (scaffolded output), line 20
+
+The generated eslint config `export default [...]` is flagged by `eslint-plugin-import` because the array is anonymous. Low priority — a warning, not an error, but clutter.
+
+**Why deferred:** Trivial fix (`const config = [...]; export default config;`) but bundled with T1 in the template-polish pass.
+
+### HIGH-6.1-T3: `my-project/` untracked scaffold left in repo root
+
+**Source:** `my-project/` (untracked)
+
+A stale scaffolded project sits in the repo root from a developer's manual CLI test. Not in `.gitignore`, not in `.prettierignore`. Picked up by Prettier's format:check (unrelated to smoke tests). Not Story 6.1's problem directly, but flagged here so the Story 6.1 commit doesn't accidentally stage it.
+
+**Why deferred:** Local-dev hygiene. Add to `.gitignore` in a future commit, or delete the directory.

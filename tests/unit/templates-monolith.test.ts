@@ -1393,12 +1393,14 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.devDependencies['eslint-config-prettier']).toMatch(exact);
   });
 
-  it('web eslint.config.mjs extends eslint-config-next/flat and eslint-config-prettier', async () => {
-    const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'eslint.config.mjs'),
-      'utf8',
-    );
-    expect(text).toContain("from 'eslint-config-next/flat'");
+  it('web eslint.config.mjs extends eslint-config-next and eslint-config-prettier', async () => {
+    // Story 6.1: Next.js 16 renamed the flat-config entry point — it's no
+    // longer under the `/flat` subpath and no longer a factory function.
+    // The package default export is now a flat-config array, spread via
+    // `...next`.
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'eslint.config.mjs'), 'utf8');
+    expect(text).toContain("from 'eslint-config-next'");
+    expect(text).not.toContain("from 'eslint-config-next/flat'");
     expect(text).toContain("from 'eslint-config-prettier'");
     expect(text).toContain('no-explicit-any');
   });

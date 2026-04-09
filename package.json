@@ -26,6 +26,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke": "node tests/smoke/smoke-test.mjs",
     "postbuild": "node scripts/chmod-bin.mjs"
   },
   "dependencies": {
