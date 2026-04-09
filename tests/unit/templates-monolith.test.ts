@@ -85,6 +85,10 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'web/app/dashboard/paid-feature/page.tsx',
   'mobile/components/auth/RoleGate.tsx',
   'mobile/components/auth/PaywallPrompt.tsx',
+  // Story 4.1 additions
+  'web/stores/app-store.ts',
+  'web/components/shared/OnboardingGreeting.tsx',
+  'mobile/stores/app-store.ts',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -824,6 +828,149 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     const pattern = /HIERARCHY[^\n]*=[^\n]*\['free',\s*'paid',\s*'super_admin'\]/;
     expect(webText).toMatch(pattern);
     expect(mobileText).toMatch(pattern);
+  });
+
+  // === Story 4.1 — Zustand stores with persistence ===
+
+  it('web app-store is a client module using zustand + persist + createJSONStorage', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    expect(text).toContain("'use client'");
+    expect(text).toContain("from 'zustand'");
+    expect(text).toContain("from 'zustand/middleware'");
+    expect(text).toContain('persist');
+    expect(text).toContain('createJSONStorage');
+    expect(text).toContain('useAppStore');
+  });
+
+  it('web app-store returns undefined storage on the server (SSR-safe)', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    // Guard the window reference so Next.js server components don't crash.
+    expect(text).toContain("typeof window !== 'undefined'");
+    expect(text).toContain('window.localStorage');
+  });
+
+  it('web app-store partialize excludes ephemeral drawerOpen from persistence', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    expect(text).toContain('partialize');
+    // The partialized object must mention theme + onboardingComplete but NOT drawerOpen.
+    expect(text).toMatch(/partialize:[\s\S]*theme:[\s\S]*onboardingComplete/);
+    expect(text).not.toMatch(/partialize:[\s\S]*drawerOpen/);
+  });
+
+  it('web app-store uses the projectNameKebab-app storage key token', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    expect(text).toContain('{{projectNameKebab}}-app');
+  });
+
+  it('mobile app-store uses zustand + persist backed by react-native-mmkv', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from 'zustand'");
+    expect(text).toContain("from 'zustand/middleware'");
+    expect(text).toContain("from 'react-native-mmkv'");
+    expect(text).toContain('new MMKV');
+    expect(text).toContain('persist');
+    expect(text).toContain('createJSONStorage');
+    expect(text).toContain('useAppStore');
+  });
+
+  it('mobile app-store wraps MMKV in a StateStorage adapter', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    expect(text).toContain('StateStorage');
+    expect(text).toContain('getItem');
+    expect(text).toContain('setItem');
+    expect(text).toContain('removeItem');
+  });
+
+  it('mobile app-store partialize excludes drawerOpen from persistence', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    expect(text).toContain('partialize');
+    expect(text).toMatch(/partialize:[\s\S]*theme:[\s\S]*onboardingComplete/);
+    expect(text).not.toMatch(/partialize:[\s\S]*drawerOpen/);
+  });
+
+  it('web AppState and mobile AppState share the same slice shape', async () => {
+    const webText = await readFile(
+      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    const mobileText = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      'utf8',
+    );
+    // Both files must export the same AppState shape so shared code can
+    // depend on it without forking on platform.
+    const fields = ['theme: Theme', 'onboardingComplete: boolean', 'drawerOpen: boolean'];
+    for (const field of fields) {
+      expect(webText).toContain(field);
+      expect(mobileText).toContain(field);
+    }
+    for (const action of ['setTheme', 'completeOnboarding', 'toggleDrawer']) {
+      expect(webText).toContain(action);
+      expect(mobileText).toContain(action);
+    }
+  });
+
+  it('web dashboard page imports OnboardingGreeting (store demo consumer)', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'page.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('OnboardingGreeting');
+    expect(text).toContain('@/components/shared/OnboardingGreeting');
+  });
+
+  it('web OnboardingGreeting is a client component reading useAppStore', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'web', 'components', 'shared', 'OnboardingGreeting.tsx'),
+      'utf8',
+    );
+    expect(text).toContain("'use client'");
+    expect(text).toContain('useAppStore');
+    expect(text).toContain('onboardingComplete');
+    expect(text).toContain('@/stores/app-store');
+  });
+
+  it('mobile home tab imports useAppStore to prove the store works', async () => {
+    const text = await readFile(
+      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', 'index.tsx'),
+      'utf8',
+    );
+    expect(text).toContain('useAppStore');
+    expect(text).toContain('../../stores/app-store');
+  });
+
+  it('web package.json pins zustand', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['zustand']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('mobile package.json pins zustand + react-native-mmkv', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
+    expect(parsed.dependencies['zustand']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.dependencies['react-native-mmkv']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
