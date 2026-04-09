@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "{{projectName}}",
+    "slug": "{{projectNameKebab}}",
+    "scheme": "{{projectNameKebab}}",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.{{projectNameKebab}}"
+    },
+    "android": {
+      "package": "com.example.{{projectNameKebab}}"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

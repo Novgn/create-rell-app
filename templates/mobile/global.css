@@ -1,0 +1,9 @@
+/*
+ * NativeWind global stylesheet — compiled by the Metro transformer into
+ * React Native styles. This file is imported once from app/_layout.tsx so
+ * the transformer picks it up. Do not import it from other files.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

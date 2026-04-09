@@ -1,0 +1,18 @@
+# {{projectName}} — environment variables template
+#
+# Copy this file to `.env` at the project root, then fill in the values
+# before running the app. Never commit real credentials — the generated
+# .gitignore already excludes `.env*` (except this example file).
+#
+# Expo only exposes vars prefixed with EXPO_PUBLIC_ to the compiled bundle.
+# Do NOT put secrets here — they will be extractable from the shipped app.
+
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+
+# Drizzle / direct Postgres connection — used by Drizzle Kit (migration
+# tooling) only, NOT by the mobile app at runtime. Export this in the
+# shell before running `{{pmRunCmd}} db:generate` or `db:migrate`, or put
+# it in a separate .env file your tooling loads.
+# DATABASE_URL=postgresql://postgres:[password]@[project-ref].supabase.co:5432/postgres

@@ -1,0 +1,137 @@
+// Example form — React Hook Form + Zod on React Native.
+//
+// Uses `Controller` instead of `register` because React Native inputs
+// (`TextInput`) are not HTML form elements — RHF can't intercept
+// `onChange`/`onBlur` via ref-based `register`, so we use the `Controller`
+// render-prop pattern to bridge RHF state with RN inputs.
+//
+// The Zod schema is imported from `lib/validation/profile-form` — a single
+// source of truth the form, any server action, and any API route can all
+// validate against. Type safety is guaranteed by `z.infer<>`.
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import {
+  profileFormSchema,
+  type ProfileFormValues,
+} from '../../lib/validation/profile-form';
+
+export function ProfileForm() {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      displayName: '',
+      bio: '',
+      website: '',
+    },
+  });
+
+  function onSubmit(values: ProfileFormValues) {
+    // Replace this with a real Supabase insert or API call. The `values`
+    // argument is already Zod-validated.
+    console.log('profile form submit', values);
+  }
+
+  return (
+    <View style={styles.form}>
+      <View style={styles.field}>
+        <Text style={styles.label}>Display name</Text>
+        <Controller
+          control={control}
+          name="displayName"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextInput
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="words"
+              placeholder="Ada Lovelace"
+              style={styles.input}
+            />
+          )}
+        />
+        {errors.displayName && (
+          <Text style={styles.error}>{errors.displayName.message}</Text>
+        )}
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>Bio</Text>
+        <Controller
+          control={control}
+          name="bio"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextInput
+              value={value ?? ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              multiline
+              numberOfLines={3}
+              placeholder="A short bio"
+              style={[styles.input, styles.textarea]}
+            />
+          )}
+        />
+        {errors.bio && <Text style={styles.error}>{errors.bio.message}</Text>}
+      </View>
+
+      <View style={styles.field}>
+        <Text style={styles.label}>Website</Text>
+        <Controller
+          control={control}
+          name="website"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextInput
+              value={value ?? ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
+              keyboardType="url"
+              placeholder="https://example.com"
+              style={styles.input}
+            />
+          )}
+        />
+        {errors.website && (
+          <Text style={styles.error}>{errors.website.message}</Text>
+        )}
+      </View>
+
+      <Pressable
+        onPress={handleSubmit(onSubmit)}
+        disabled={isSubmitting}
+        style={styles.button}
+      >
+        <Text style={styles.buttonText}>{isSubmitting ? 'Saving…' : 'Save profile'}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  form: { gap: 16, padding: 16 },
+  field: { gap: 4 },
+  label: { fontSize: 14, fontWeight: '600' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 16,
+  },
+  textarea: { minHeight: 80, textAlignVertical: 'top' },
+  error: { color: '#c00', fontSize: 12 },
+  button: {
+    backgroundColor: '#111',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#fff', fontWeight: '600' },
+});

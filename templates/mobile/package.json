@@ -1,0 +1,72 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@clerk/clerk-expo": "2.19.31",
+    "@hookform/resolvers": "5.2.2",
+    "@supabase/supabase-js": "2.102.1",
+    "drizzle-orm": "0.45.2",
+    "expo": "55.0.12",
+    "expo-linking": "8.0.10",
+    "expo-router": "55.0.11",
+    "expo-secure-store": "55.0.12",
+    "expo-status-bar": "3.0.10",
+    "nativewind": "4.2.2",
+    "postgres": "3.4.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "7.64.0",
+    "react-native": "0.85.0",
+    "react-native-mmkv": "3.3.4",
+    "react-native-reanimated": "4.2.0",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.18.0",
+    "zod": "4.1.12",
+    "zustand": "5.0.8"
+  },
+  "devDependencies": {
+    "@babel/core": "7.28.6",
+    "@eslint/js": "10.0.1",
+    "@types/react": "19.2.14",
+    "drizzle-kit": "0.31.10",
+    "eslint": "10.2.0",
+    "eslint-config-prettier": "10.1.8",
+    "husky": "9.1.7",
+    "lint-staged": "16.2.6",
+    "prettier": "3.8.1",
+    "tailwindcss": "3.4.17",
+    "typescript": "6.0.2",
+    "typescript-eslint": "8.58.1"
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "trailingComma": "all",
+    "printWidth": 100,
+    "tabWidth": 2
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": ["prettier --write"],
+    "*.{js,jsx,mjs,cjs,json,css,md}": ["prettier --write"]
+  }
+}
