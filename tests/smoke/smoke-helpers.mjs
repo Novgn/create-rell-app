@@ -23,10 +23,13 @@
  */
 export const TEMPLATES = Object.freeze({
   web: Object.freeze({
+    // No `next build` step — it requires real CLERK_SECRET_KEY / SUPABASE
+    // env vars at build time because Next.js collects page data for server
+    // routes. Lint + typecheck validates the code compiles correctly;
+    // `next build` is a deployment concern, not a scaffold-quality check.
     steps: Object.freeze([
       Object.freeze({ label: 'install', cmd: 'npm', args: Object.freeze(['install']) }),
       Object.freeze({ label: 'lint', cmd: 'npm', args: Object.freeze(['run', 'lint']) }),
-      Object.freeze({ label: 'build', cmd: 'npm', args: Object.freeze(['run', 'build']) }),
       Object.freeze({
         label: 'typecheck',
         cmd: 'npm',
@@ -51,7 +54,7 @@ export const TEMPLATES = Object.freeze({
     steps: Object.freeze([
       Object.freeze({ label: 'install', cmd: 'npm', args: Object.freeze(['install']) }),
       Object.freeze({ label: 'lint', cmd: 'npm', args: Object.freeze(['run', 'lint']) }),
-      Object.freeze({ label: 'build:web', cmd: 'npm', args: Object.freeze(['run', 'build:web']) }),
+      // No `build:web` — same env-var constraint as web (see comment above).
       Object.freeze({
         label: 'typecheck',
         cmd: 'npm',

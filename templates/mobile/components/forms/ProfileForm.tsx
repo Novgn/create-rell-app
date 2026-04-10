@@ -23,7 +23,7 @@ export function ProfileForm() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<ProfileFormValues>({
+  } = useForm({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       displayName: '',

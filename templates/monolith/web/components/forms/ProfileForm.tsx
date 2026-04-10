@@ -13,7 +13,7 @@
 // Wire `onSubmit` to your API route or Server Action — the logged payload is
 // already the validated, coerced output of the schema.
 
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useForm } from 'react-hook-form';
 
 import {
@@ -27,7 +27,7 @@ export function ProfileForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
+    resolver: standardSchemaResolver(profileFormSchema),
     defaultValues: {
       displayName: '',
       bio: '',

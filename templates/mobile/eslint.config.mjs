@@ -28,7 +28,18 @@ export default [
       ],
     },
   },
+  // CJS config files (babel, metro, tailwind) use `module.exports` and
+  // `require()` which the TS/ESM rules flag. These are build-tool configs,
+  // not app code — ignore them.
   {
-    ignores: ['node_modules', '.expo', 'dist', 'build'],
+    ignores: [
+      'node_modules',
+      '.expo',
+      'dist',
+      'build',
+      'babel.config.js',
+      'metro.config.js',
+      'tailwind.config.js',
+    ],
   },
 ];

@@ -27,7 +27,7 @@ export default async function BillingPage() {
         Current plan: <strong>{current?.role ?? 'free'}</strong>
       </p>
       <p>
-        Pick a plan below. Clicking a tier starts Clerk's managed checkout
+        Pick a plan below. Clicking a tier starts Clerk&apos;s managed checkout
         flow; when you complete it, a webhook updates your role in the
         database and your access elevates on the next page load.
       </p>
@@ -36,7 +36,7 @@ export default async function BillingPage() {
         To manage an existing subscription (change plan, update payment
         method, cancel), open the Clerk user menu in the header —
         subscription management lives alongside your account settings
-        under Clerk's <code>&lt;UserButton /&gt;</code>.
+        under Clerk&apos;s <code>&lt;UserButton /&gt;</code>.
       </p>
     </section>
   );

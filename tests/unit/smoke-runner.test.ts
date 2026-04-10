@@ -37,22 +37,22 @@ describe('TEMPLATES matrix', () => {
     }
   });
 
-  it('web runs lint, build, and typecheck after install', () => {
+  it('web runs lint and typecheck after install (no next build — requires env vars)', () => {
     const labels = TEMPLATES.web.steps.map((s) => s.label);
-    expect(labels).toEqual(['install', 'lint', 'build', 'typecheck']);
-  });
-
-  it('mobile substitutes typecheck for build (Expo has no build script)', () => {
-    const labels = TEMPLATES.mobile.steps.map((s) => s.label);
     expect(labels).toEqual(['install', 'lint', 'typecheck']);
-    // Explicitly assert the absence of a `build` step so a future change
-    // that naively adds one here fails this test and forces reconsideration.
     expect(labels).not.toContain('build');
   });
 
-  it('monolith uses build:web and also runs typecheck across workspaces', () => {
+  it('mobile runs lint and typecheck after install (Expo has no build script)', () => {
+    const labels = TEMPLATES.mobile.steps.map((s) => s.label);
+    expect(labels).toEqual(['install', 'lint', 'typecheck']);
+    expect(labels).not.toContain('build');
+  });
+
+  it('monolith runs lint and typecheck after install (no build:web — requires env vars)', () => {
     const labels = TEMPLATES.monolith.steps.map((s) => s.label);
-    expect(labels).toEqual(['install', 'lint', 'build:web', 'typecheck']);
+    expect(labels).toEqual(['install', 'lint', 'typecheck']);
+    expect(labels).not.toContain('build');
   });
 
   it('every template requires the four core files at minimum', () => {

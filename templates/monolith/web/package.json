@@ -19,6 +19,7 @@
     "react-dom": "19.2.4",
     "react-hook-form": "7.64.0",
     "svix": "1.90.0",
+    "zod": "4.1.12",
     "tailwind-merge": "3.3.1",
     "zod": "4.1.12",
     "zustand": "5.0.8"

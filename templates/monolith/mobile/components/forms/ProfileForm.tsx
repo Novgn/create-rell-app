@@ -8,7 +8,7 @@
 // The Zod schema is imported from `@{{projectNameKebab}}/shared` — the exact
 // same file the web form uses. Type safety is guaranteed by `z.infer<>`.
 
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -23,7 +23,7 @@ export function ProfileForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
+    resolver: standardSchemaResolver(profileFormSchema),
     defaultValues: {
       displayName: '',
       bio: '',

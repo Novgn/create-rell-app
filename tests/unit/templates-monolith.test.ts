@@ -1038,16 +1038,19 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.dependencies['zod']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('web ProfileForm is a client component using useForm + zodResolver', async () => {
+  it('web ProfileForm is a client component using useForm + standardSchemaResolver', async () => {
+    // Monolith uses standardSchemaResolver (not zodResolver) because Zod v4
+    // implements the Standard Schema spec and the standard-schema resolver
+    // avoids cross-workspace type resolution issues with zodResolver.
     const text = await readFile(
       join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
       'utf8',
     );
     expect(text).toContain("'use client'");
     expect(text).toContain("from 'react-hook-form'");
-    expect(text).toContain("from '@hookform/resolvers/zod'");
+    expect(text).toContain("from '@hookform/resolvers/standard-schema'");
     expect(text).toContain('useForm');
-    expect(text).toContain('zodResolver(profileFormSchema)');
+    expect(text).toContain('standardSchemaResolver(profileFormSchema)');
   });
 
   it('web ProfileForm imports the shared schema via the workspace package', async () => {
