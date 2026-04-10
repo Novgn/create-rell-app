@@ -17,7 +17,7 @@ import next from 'eslint-config-next';
 import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
-export default [
+const config = [
   ...next,
   prettier,
   {
@@ -36,3 +36,5 @@ export default [
     },
   },
 ];
+
+export default config;

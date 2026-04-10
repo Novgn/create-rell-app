@@ -24,19 +24,14 @@ export interface UseRoleResult {
 export function useRole(): UseRoleResult {
   const { isSignedIn, isLoaded, userId } = useAuth();
   const supabase = useSupabaseClient();
-  const [role, setRole] = useState<Role | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [fetchedRole, setFetchedRole] = useState<Role | null>(null);
+
+  const shouldFetch = isLoaded === true && isSignedIn === true && userId != null;
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn || !userId) {
-      setRole(null);
-      setIsLoading(false);
-      return;
-    }
+    if (!shouldFetch) return;
 
     let cancelled = false;
-    setIsLoading(true);
 
     supabase
       .from('user_roles')
@@ -47,19 +42,18 @@ export function useRole(): UseRoleResult {
         if (cancelled) return;
         if (error) {
           console.error('[useRole] failed to fetch role:', error);
-          setRole('free');
+          setFetchedRole('free');
         } else {
-          setRole(data?.role ?? 'free');
+          setFetchedRole(data?.role ?? 'free');
         }
-      })
-      .then(() => {
-        if (!cancelled) setIsLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isSignedIn, isLoaded, userId, supabase]);
+  }, [shouldFetch, userId, supabase]);
 
-  return { role, isLoading };
+  if (!isLoaded) return { role: null, isLoading: true };
+  if (!isSignedIn) return { role: null, isLoading: false };
+  return { role: fetchedRole, isLoading: fetchedRole === null };
 }

@@ -24,19 +24,14 @@ export interface UseRoleResult {
 
 export function useRole(): UseRoleResult {
   const { isSignedIn, isLoaded } = useAuth();
-  const [role, setRole] = useState<Role | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [fetchedRole, setFetchedRole] = useState<Role | null>(null);
+
+  const shouldFetch = isLoaded === true && isSignedIn === true;
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) {
-      setRole(null);
-      setIsLoading(false);
-      return;
-    }
+    if (!shouldFetch) return;
 
     let cancelled = false;
-    setIsLoading(true);
 
     fetch('/api/me/role')
       .then((res) => {
@@ -44,20 +39,19 @@ export function useRole(): UseRoleResult {
         return res.json() as Promise<{ role: Role }>;
       })
       .then((data) => {
-        if (!cancelled) setRole(data.role);
+        if (!cancelled) setFetchedRole(data.role);
       })
       .catch((err) => {
         console.error('[useRole] failed to fetch role:', err);
-        if (!cancelled) setRole('free');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) setFetchedRole('free');
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isSignedIn, isLoaded]);
+  }, [shouldFetch]);
 
-  return { role, isLoading };
+  if (!isLoaded) return { role: null, isLoading: true };
+  if (!isSignedIn) return { role: null, isLoading: false };
+  return { role: fetchedRole, isLoading: fetchedRole === null };
 }
