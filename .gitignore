@@ -15,3 +15,13 @@ coverage
 
 # OS
 Thumbs.db
+
+# BMAD agent artifacts (planning docs, story files, sprint status)
+_bmad/
+_bmad-output/
+
+# Local CLI test output
+my-project/
+
+# Claude Code config
+.claude/
