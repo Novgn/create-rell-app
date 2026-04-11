@@ -31,6 +31,7 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   'middleware.ts',
   'drizzle.config.ts',
   // db/
+  'db/README.md',
   'db/schema.ts',
   'db/queries.ts',
   'db/client.ts',
@@ -40,6 +41,7 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   // lib/
   'lib/env.ts',
   'lib/env-server.ts',
+  'lib/logger.ts',
   'lib/cn.ts',
   'lib/supabase/client.ts',
   'lib/supabase/server.ts',
