@@ -39,24 +39,30 @@ const ROOT_DIRS: TripletLocations = {
   mobile: MOBILE_DIR,
 };
 
+// Per-workspace roots inside the monolith template. Apps live under apps/,
+// libraries under packages/.
+const MONOLITH_WEB_DIR = join(MONOLITH_DIR, 'apps', 'web');
+const MONOLITH_MOBILE_DIR = join(MONOLITH_DIR, 'apps', 'mobile');
+const MONOLITH_SHARED_DIR = join(MONOLITH_DIR, 'packages', 'shared');
+
 // Paths to the Drizzle schema file in each template. Monolith keeps it under
-// shared/db/; the solo templates inline it at db/ at the project root.
+// packages/shared/db/; the solo templates inline it at db/ at the project root.
 const SCHEMA_PATHS: TripletLocations = {
-  monolith: join(MONOLITH_DIR, 'shared', 'db', 'schema.ts'),
+  monolith: join(MONOLITH_SHARED_DIR, 'db', 'schema.ts'),
   web: join(WEB_DIR, 'db', 'schema.ts'),
   mobile: join(MOBILE_DIR, 'db', 'schema.ts'),
 };
 
 // Paths to the initial RLS migration in each template.
 const INITIAL_MIGRATION_PATHS: TripletLocations = {
-  monolith: join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0000_initial.sql'),
+  monolith: join(MONOLITH_SHARED_DIR, 'db', 'migrations', '0000_initial.sql'),
   web: join(WEB_DIR, 'db', 'migrations', '0000_initial.sql'),
   mobile: join(MOBILE_DIR, 'db', 'migrations', '0000_initial.sql'),
 };
 
 // Paths to the RoleGate component in each template.
 const ROLE_GATE_PATHS: TripletLocations = {
-  monolith: join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+  monolith: join(MONOLITH_WEB_DIR, 'components', 'auth', 'RoleGate.tsx'),
   web: join(WEB_DIR, 'components', 'auth', 'RoleGate.tsx'),
   mobile: join(MOBILE_DIR, 'components', 'auth', 'RoleGate.tsx'),
 };
@@ -64,8 +70,7 @@ const ROLE_GATE_PATHS: TripletLocations = {
 const MOBILE_ROLE_GATE_PATH = join(MOBILE_DIR, 'components', 'auth', 'RoleGate.tsx');
 
 // Paths to the app-store for each "store-bearing" target. The monolith has
-// two stores (web + mobile) under the monolith folder; the solo templates
-// have one each.
+// two stores (web + mobile) under apps/; the solo templates have one each.
 interface StorePaths {
   monolithWeb: string;
   monolithMobile: string;
@@ -74,16 +79,16 @@ interface StorePaths {
 }
 
 const STORE_PATHS: StorePaths = {
-  monolithWeb: join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
-  monolithMobile: join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+  monolithWeb: join(MONOLITH_WEB_DIR, 'stores', 'app-store.ts'),
+  monolithMobile: join(MONOLITH_MOBILE_DIR, 'stores', 'app-store.ts'),
   web: join(WEB_DIR, 'stores', 'app-store.ts'),
   mobile: join(MOBILE_DIR, 'stores', 'app-store.ts'),
 };
 
 // Paths to the Zod profile form schema in each template. Monolith keeps it
-// in shared/; solo templates inline it at lib/validation/.
+// in packages/shared/; solo templates inline it at lib/validation/.
 const PROFILE_SCHEMA_PATHS: TripletLocations = {
-  monolith: join(MONOLITH_DIR, 'shared', 'validation', 'profile-form.ts'),
+  monolith: join(MONOLITH_SHARED_DIR, 'validation', 'profile-form.ts'),
   web: join(WEB_DIR, 'lib', 'validation', 'profile-form.ts'),
   mobile: join(MOBILE_DIR, 'lib', 'validation', 'profile-form.ts'),
 };
@@ -133,7 +138,7 @@ describe('cross-template DB naming consistency', () => {
 
   it('0001_rbac_helpers.sql is byte-identical across all three templates', async () => {
     const paths = {
-      monolith: join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0001_rbac_helpers.sql'),
+      monolith: join(MONOLITH_SHARED_DIR, 'db', 'migrations', '0001_rbac_helpers.sql'),
       web: join(WEB_DIR, 'db', 'migrations', '0001_rbac_helpers.sql'),
       mobile: join(MOBILE_DIR, 'db', 'migrations', '0001_rbac_helpers.sql'),
     };
@@ -270,8 +275,8 @@ describe('cross-template package.json DX scripts', () => {
 
 describe('cross-template RoleGate hierarchy', () => {
   const ROLE_GATE_TARGETS = {
-    monolithWeb: join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
-    monolithMobile: MOBILE_ROLE_GATE_PATH.replace(MOBILE_DIR, join(MONOLITH_DIR, 'mobile')),
+    monolithWeb: join(MONOLITH_WEB_DIR, 'components', 'auth', 'RoleGate.tsx'),
+    monolithMobile: MOBILE_ROLE_GATE_PATH.replace(MOBILE_DIR, MONOLITH_MOBILE_DIR),
     web: ROLE_GATE_PATHS.web,
     mobile: ROLE_GATE_PATHS.mobile,
   };

@@ -1,14 +1,16 @@
 # {{projectName}}
 
-Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewonder3/create-rell-app). Next.js web + Expo mobile sharing schema and types through a local `shared` workspace.
+Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewonder3/create-rell-app). Next.js web + Expo mobile sharing schema and types through a local `packages/shared` workspace.
 
 ## Layout
 
 ```
 {{projectName}}/
-├── web/      # Next.js 16 App Router (auth, billing, dashboard)
-├── mobile/   # Expo / React Native client
-├── shared/   # Drizzle schema + shared TypeScript types
+├── apps/
+│   ├── web/      # Next.js 16 App Router (auth, billing, dashboard)
+│   └── mobile/   # Expo / React Native client
+├── packages/
+│   └── shared/   # Drizzle schema + shared TypeScript types
 ├── .env.example
 ├── package.json  # workspace root
 └── tsconfig.base.json
@@ -58,4 +60,4 @@ Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewo
 ## Notes
 
 - Auth integration uses Clerk's **native** Supabase third-party auth. Do **not** use the deprecated JWT-template pattern (passing a template name to Clerk's `getToken` call) — that integration path was phased out in April 2025.
-- Dependencies are pinned to exact versions — update them in groups (`web/package.json`, `mobile/package.json`, `shared/package.json`) rather than running floating-range updates.
+- Dependencies are pinned to exact versions — update them in groups (`apps/web/package.json`, `apps/mobile/package.json`, `packages/shared/package.json`) rather than running floating-range updates.

@@ -10,11 +10,15 @@ import { scaffoldProject } from '../../src/scaffold.ts';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = resolve(HERE, '..', '..', 'templates');
 const MONOLITH_DIR = join(TEMPLATES_DIR, 'monolith');
+const WEB_DIR = join(MONOLITH_DIR, 'apps', 'web');
+const MOBILE_DIR = join(MONOLITH_DIR, 'apps', 'mobile');
+const SHARED_DIR = join(MONOLITH_DIR, 'packages', 'shared');
 
 /**
- * Expected files in the monolith template after Story 2.1. These are the
- * paths inside `templates/monolith/` — underscore-prefixed files become
- * dotted on scaffold output (handled by src/scaffold.ts).
+ * Expected files in the monolith template. Paths are relative to
+ * `templates/monolith/`. Apps live under `apps/`, libraries under
+ * `packages/`. Underscore-prefixed files become dotted on scaffold output
+ * (handled by src/scaffold.ts).
  */
 const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'package.json',
@@ -22,99 +26,85 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   '_gitignore',
   '_env.example',
   'README.md',
-  'web/package.json',
-  'web/next.config.ts',
-  'web/tsconfig.json',
-  'web/next-env.d.ts',
-  'web/app/layout.tsx',
-  'web/app/page.tsx',
-  'web/app/error.tsx',
-  'web/app/loading.tsx',
-  'web/app/globals.css',
-  // Story 2.2 additions
-  'web/lib/env.ts',
-  'web/lib/supabase/client.ts',
-  'web/lib/supabase/server.ts',
-  // Story 2.3 additions
-  'web/middleware.ts',
-  'web/app/(auth)/sign-in/[[...sign-in]]/page.tsx',
-  'web/app/(auth)/sign-up/[[...sign-up]]/page.tsx',
-  'web/app/dashboard/layout.tsx',
-  'web/app/dashboard/page.tsx',
-  'mobile/package.json',
-  'mobile/app.json',
-  'mobile/babel.config.js',
-  'mobile/tsconfig.json',
-  'mobile/app/_layout.tsx',
-  // Story 2.2 additions
-  'mobile/lib/env.ts',
-  'mobile/lib/token-cache.ts',
-  'mobile/lib/supabase/client.ts',
-  // Story 2.3 additions (mobile auth flows, replaces mobile/app/index.tsx)
-  'mobile/app/(auth)/_layout.tsx',
-  'mobile/app/(auth)/sign-in.tsx',
-  'mobile/app/(auth)/sign-up.tsx',
-  'mobile/app/(tabs)/_layout.tsx',
-  'mobile/app/(tabs)/index.tsx',
-  'shared/package.json',
-  'shared/tsconfig.json',
-  'shared/index.ts',
-  // Story 2.4 additions
-  'shared/drizzle.config.ts',
-  'shared/db/schema.ts',
-  'shared/db/client.ts',
-  'shared/db/queries.ts',
-  'shared/db/migrations/0000_initial.sql',
-  // Story 3.1 additions
-  'web/lib/auth/current-user.ts',
-  'web/app/dashboard/billing/page.tsx',
-  // Story 3.2 additions
-  'web/lib/env-server.ts',
-  'web/lib/billing/plan-to-role.ts',
-  'web/lib/billing/event-handler.ts',
-  'web/app/api/webhooks/clerk-billing/route.ts',
-  // Story 3.3 additions
-  'web/lib/auth/roles.ts',
-  'web/lib/auth/use-role.ts',
-  'web/app/api/me/role/route.ts',
-  'mobile/lib/auth/use-role.ts',
-  'shared/db/migrations/0001_rbac_helpers.sql',
-  // Story 3.4 additions
-  'web/components/auth/RoleGate.tsx',
-  'web/components/auth/PaywallPrompt.tsx',
-  'web/app/dashboard/paid-feature/page.tsx',
-  'mobile/components/auth/RoleGate.tsx',
-  'mobile/components/auth/PaywallPrompt.tsx',
-  // Story 4.1 additions
-  'web/stores/app-store.ts',
-  'web/components/shared/OnboardingGreeting.tsx',
-  'mobile/stores/app-store.ts',
-  // Story 4.2 additions
-  'shared/validation/profile-form.ts',
-  'web/components/forms/ProfileForm.tsx',
-  'web/app/dashboard/settings/page.tsx',
-  'mobile/components/forms/ProfileForm.tsx',
-  'mobile/app/(tabs)/settings.tsx',
-  // Story 4.3 additions — web Tailwind + shadcn
-  'web/postcss.config.mjs',
-  'web/components.json',
-  'web/lib/cn.ts',
-  'web/components/ui/Button.tsx',
-  'web/components/ui/Card.tsx',
-  'web/components/ui/Skeleton.tsx',
-  'web/components/shared/SkeletonCard.tsx',
-  'web/components/shared/SkeletonTable.tsx',
-  'web/app/dashboard/loading.tsx',
-  // Story 4.3 additions — mobile NativeWind
-  'mobile/tailwind.config.js',
-  'mobile/global.css',
-  'mobile/metro.config.js',
-  'mobile/nativewind-env.d.ts',
-  'mobile/components/shared/SkeletonCard.tsx',
-  // Story 4.4 additions — ESLint, Prettier, Husky
+  'apps/web/package.json',
+  'apps/web/next.config.ts',
+  'apps/web/tsconfig.json',
+  'apps/web/next-env.d.ts',
+  'apps/web/app/layout.tsx',
+  'apps/web/app/page.tsx',
+  'apps/web/app/error.tsx',
+  'apps/web/app/loading.tsx',
+  'apps/web/app/globals.css',
+  'apps/web/lib/env.ts',
+  'apps/web/lib/supabase/client.ts',
+  'apps/web/lib/supabase/server.ts',
+  'apps/web/middleware.ts',
+  'apps/web/app/(auth)/sign-in/[[...sign-in]]/page.tsx',
+  'apps/web/app/(auth)/sign-up/[[...sign-up]]/page.tsx',
+  'apps/web/app/dashboard/layout.tsx',
+  'apps/web/app/dashboard/page.tsx',
+  'apps/mobile/package.json',
+  'apps/mobile/app.json',
+  'apps/mobile/babel.config.js',
+  'apps/mobile/tsconfig.json',
+  'apps/mobile/app/_layout.tsx',
+  'apps/mobile/lib/env.ts',
+  'apps/mobile/lib/token-cache.ts',
+  'apps/mobile/lib/supabase/client.ts',
+  'apps/mobile/app/(auth)/_layout.tsx',
+  'apps/mobile/app/(auth)/sign-in.tsx',
+  'apps/mobile/app/(auth)/sign-up.tsx',
+  'apps/mobile/app/(tabs)/_layout.tsx',
+  'apps/mobile/app/(tabs)/index.tsx',
+  'packages/shared/package.json',
+  'packages/shared/tsconfig.json',
+  'packages/shared/index.ts',
+  'packages/shared/drizzle.config.ts',
+  'packages/shared/db/schema.ts',
+  'packages/shared/db/client.ts',
+  'packages/shared/db/queries.ts',
+  'packages/shared/db/migrations/0000_initial.sql',
+  'apps/web/lib/auth/current-user.ts',
+  'apps/web/app/dashboard/billing/page.tsx',
+  'apps/web/lib/env-server.ts',
+  'apps/web/lib/billing/plan-to-role.ts',
+  'apps/web/lib/billing/event-handler.ts',
+  'apps/web/app/api/webhooks/clerk-billing/route.ts',
+  'apps/web/lib/auth/roles.ts',
+  'apps/web/lib/auth/use-role.ts',
+  'apps/web/app/api/me/role/route.ts',
+  'apps/mobile/lib/auth/use-role.ts',
+  'packages/shared/db/migrations/0001_rbac_helpers.sql',
+  'apps/web/components/auth/RoleGate.tsx',
+  'apps/web/components/auth/PaywallPrompt.tsx',
+  'apps/web/app/dashboard/paid-feature/page.tsx',
+  'apps/mobile/components/auth/RoleGate.tsx',
+  'apps/mobile/components/auth/PaywallPrompt.tsx',
+  'apps/web/stores/app-store.ts',
+  'apps/web/components/shared/OnboardingGreeting.tsx',
+  'apps/mobile/stores/app-store.ts',
+  'packages/shared/validation/profile-form.ts',
+  'apps/web/components/forms/ProfileForm.tsx',
+  'apps/web/app/dashboard/settings/page.tsx',
+  'apps/mobile/components/forms/ProfileForm.tsx',
+  'apps/mobile/app/(tabs)/settings.tsx',
+  'apps/web/postcss.config.mjs',
+  'apps/web/components.json',
+  'apps/web/lib/cn.ts',
+  'apps/web/components/ui/Button.tsx',
+  'apps/web/components/ui/Card.tsx',
+  'apps/web/components/ui/Skeleton.tsx',
+  'apps/web/components/shared/SkeletonCard.tsx',
+  'apps/web/components/shared/SkeletonTable.tsx',
+  'apps/web/app/dashboard/loading.tsx',
+  'apps/mobile/tailwind.config.js',
+  'apps/mobile/global.css',
+  'apps/mobile/metro.config.js',
+  'apps/mobile/nativewind-env.d.ts',
+  'apps/mobile/components/shared/SkeletonCard.tsx',
   '_husky/pre-commit',
-  'web/eslint.config.mjs',
-  'mobile/eslint.config.mjs',
+  'apps/web/eslint.config.mjs',
+  'apps/mobile/eslint.config.mjs',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -133,9 +123,8 @@ describe('templates/monolith static file shape', () => {
   it('root package.json declares workspaces and references {{projectName}}', async () => {
     const text = await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8');
     expect(text).toContain('"workspaces"');
-    expect(text).toContain('"web"');
-    expect(text).toContain('"mobile"');
-    expect(text).toContain('"shared"');
+    expect(text).toContain('"apps/*"');
+    expect(text).toContain('"packages/*"');
     expect(text).toContain('{{projectName}}');
   });
 
@@ -145,7 +134,7 @@ describe('templates/monolith static file shape', () => {
   });
 
   it('web/package.json pins Next.js + React to exact versions', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
@@ -170,7 +159,7 @@ describe('templates/monolith static file shape', () => {
   });
 
   it('mobile/package.json pins Expo + React Native to exact versions', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
@@ -188,17 +177,17 @@ describe('templates/monolith static file shape', () => {
   });
 
   it('shared/package.json uses the scoped @{{projectNameKebab}}/shared name', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'package.json'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'package.json'), 'utf8');
     expect(text).toContain('@{{projectNameKebab}}/shared');
   });
 
   it('web root layout includes the {{projectName}} metadata token', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'app', 'layout.tsx'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'app', 'layout.tsx'), 'utf8');
     expect(text).toContain("title: '{{projectName}}'");
   });
 
   it('mobile app.json references {{projectName}} and {{projectNameKebab}}', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'app.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'app.json'), 'utf8');
     expect(text).toContain('{{projectName}}');
     expect(text).toContain('{{projectNameKebab}}');
   });
@@ -206,8 +195,10 @@ describe('templates/monolith static file shape', () => {
   it('README documents workspace layout with {{projectName}}', async () => {
     const text = await readFile(join(MONOLITH_DIR, 'README.md'), 'utf8');
     expect(text).toContain('{{projectName}}');
+    expect(text).toContain('apps/');
     expect(text).toContain('web/');
     expect(text).toContain('mobile/');
+    expect(text).toContain('packages/');
     expect(text).toContain('shared/');
   });
 });
@@ -216,14 +207,14 @@ describe('templates/monolith static file shape', () => {
 
 describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   it('web root layout imports ClerkProvider from @clerk/nextjs and wraps children', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'app', 'layout.tsx'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'app', 'layout.tsx'), 'utf8');
     expect(text).toContain("import { ClerkProvider } from '@clerk/nextjs'");
     expect(text).toContain('<ClerkProvider>');
     expect(text).toContain('{children}');
   });
 
   it('web Supabase client uses the accessToken callback (native 3P auth)', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'supabase', 'client.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'supabase', 'client.ts'), 'utf8');
     expect(text).toContain("from '@supabase/supabase-js'");
     expect(text).toContain("from '@clerk/nextjs'");
     expect(text).toContain('accessToken');
@@ -232,7 +223,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web server Supabase client uses auth() from @clerk/nextjs/server', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'supabase', 'server.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'supabase', 'server.ts'), 'utf8');
     expect(text).toContain("from '@clerk/nextjs/server'");
     expect(text).toContain("import 'server-only'");
     expect(text).toContain('accessToken');
@@ -240,7 +231,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile root layout imports ClerkProvider from @clerk/clerk-expo', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '_layout.tsx'),
+      join(MOBILE_DIR, 'app', '_layout.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@clerk/clerk-expo'");
@@ -250,7 +241,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile Supabase client uses the accessToken callback', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'lib', 'supabase', 'client.ts'),
+      join(MOBILE_DIR, 'lib', 'supabase', 'client.ts'),
       'utf8',
     );
     expect(text).toContain("from '@supabase/supabase-js'");
@@ -260,27 +251,27 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile tokenCache is backed by expo-secure-store', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'token-cache.ts'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'lib', 'token-cache.ts'), 'utf8');
     expect(text).toContain("from 'expo-secure-store'");
     expect(text).toContain('getToken');
     expect(text).toContain('saveToken');
   });
 
   it('web/lib/env.ts validates public (NEXT_PUBLIC_) keys; server secrets live in env-server.ts', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'env.ts'), 'utf8');
     expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
     expect(text).toContain('NEXT_PUBLIC_SUPABASE_URL');
     expect(text).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
     const serverText = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'env-server.ts'),
+      join(WEB_DIR, 'lib', 'env-server.ts'),
       'utf8',
     );
     expect(serverText).toContain('CLERK_SECRET_KEY');
   });
 
   it('mobile/lib/env.ts validates all required EXPO_PUBLIC keys', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'env.ts'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'lib', 'env.ts'), 'utf8');
     expect(text).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY');
     expect(text).toContain('EXPO_PUBLIC_SUPABASE_URL');
     expect(text).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
@@ -303,14 +294,14 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web package.json pins @clerk/nextjs and @supabase/supabase-js', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['@clerk/nextjs']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['@supabase/supabase-js']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('mobile package.json pins @clerk/clerk-expo, @supabase/supabase-js, expo-secure-store', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['@clerk/clerk-expo']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['@supabase/supabase-js']).toMatch(/^\d+\.\d+\.\d+$/);
@@ -318,7 +309,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile/lib/env.ts does not reference CLERK_SECRET_KEY (secret must stay server-side)', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'lib', 'env.ts'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'lib', 'env.ts'), 'utf8');
     expect(text).not.toContain('CLERK_SECRET_KEY');
     expect(text).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
   });
@@ -326,7 +317,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   // === Story 2.3 — middleware + sign-in/sign-up + protected routes ===
 
   it('web middleware uses clerkMiddleware and createRouteMatcher from @clerk/nextjs/server', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'middleware.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'middleware.ts'), 'utf8');
     expect(text).toContain("from '@clerk/nextjs/server'");
     expect(text).toContain('clerkMiddleware');
     expect(text).toContain('createRouteMatcher');
@@ -335,7 +326,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web middleware protects (dashboard) route group with no bypass', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'middleware.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'middleware.ts'), 'utf8');
     expect(text).toContain('dashboard');
     // Matcher must not have a loose "public routes skip auth" pattern.
     expect(text).not.toContain('publicRoutes');
@@ -343,7 +334,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web sign-in page imports SignIn from @clerk/nextjs', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', '(auth)', 'sign-in', '[[...sign-in]]', 'page.tsx'),
+      join(WEB_DIR, 'app', '(auth)', 'sign-in', '[[...sign-in]]', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain("import { SignIn } from '@clerk/nextjs'");
@@ -352,7 +343,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web sign-up page imports SignUp from @clerk/nextjs', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', '(auth)', 'sign-up', '[[...sign-up]]', 'page.tsx'),
+      join(WEB_DIR, 'app', '(auth)', 'sign-up', '[[...sign-up]]', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain("import { SignUp } from '@clerk/nextjs'");
@@ -361,7 +352,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard layout uses auth() + redirects unauthenticated users', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'layout.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'layout.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@clerk/nextjs/server'");
@@ -371,14 +362,14 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard layout uses UserButton', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'layout.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'layout.tsx'),
       'utf8',
     );
     expect(text).toContain('UserButton');
   });
 
   it('web middleware dashboard matcher targets the real /dashboard URL (not a parenthesized group)', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'middleware.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'middleware.ts'), 'utf8');
     expect(text).toContain("'/dashboard(.*)'");
     // The parenthesized route group form is a bug — it would never match.
     expect(text).not.toContain('/(dashboard)');
@@ -386,7 +377,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile (auth)/sign-in uses useSignIn from @clerk/clerk-expo', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '(auth)', 'sign-in.tsx'),
+      join(MOBILE_DIR, 'app', '(auth)', 'sign-in.tsx'),
       'utf8',
     );
     expect(text).toContain("import { useSignIn } from '@clerk/clerk-expo'");
@@ -395,7 +386,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile (auth)/sign-up uses useSignUp from @clerk/clerk-expo', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '(auth)', 'sign-up.tsx'),
+      join(MOBILE_DIR, 'app', '(auth)', 'sign-up.tsx'),
       'utf8',
     );
     expect(text).toContain("import { useSignUp } from '@clerk/clerk-expo'");
@@ -404,7 +395,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile (tabs)/_layout.tsx redirects unauthenticated users via useAuth', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', '_layout.tsx'),
+      join(MOBILE_DIR, 'app', '(tabs)', '_layout.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@clerk/clerk-expo'");
@@ -414,7 +405,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile root layout uses Slot (routing delegated to nested layouts)', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'app', '_layout.tsx'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'app', '_layout.tsx'), 'utf8');
     expect(text).toContain("from 'expo-router'");
     expect(text).toContain('Slot');
     // Old Story 2.1 used Stack.Screen name="index" — confirm we migrated.
@@ -422,13 +413,13 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile/app/index.tsx was removed (replaced by (tabs)/index.tsx)', async () => {
-    await expect(stat(join(MONOLITH_DIR, 'mobile', 'app', 'index.tsx'))).rejects.toBeDefined();
+    await expect(stat(join(MOBILE_DIR, 'app', 'index.tsx'))).rejects.toBeDefined();
   });
 
   // === Story 2.4 — Drizzle schema, queries, migrations ===
 
   it('shared/package.json pins drizzle-orm, postgres, drizzle-kit', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'package.json'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
@@ -440,7 +431,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/db/schema.ts defines user_roles table with correct columns and naming', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'schema.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'db', 'schema.ts'), 'utf8');
     // Table name — relax whitespace matching by searching for the literal
     // first-arg string anywhere in the file.
     expect(text).toMatch(/pgTable\(\s*'user_roles'/);
@@ -457,7 +448,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/db/schema.ts exports UserRole + NewUserRole + Role types', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'schema.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'db', 'schema.ts'), 'utf8');
     expect(text).toContain('export type UserRole');
     expect(text).toContain('export type NewUserRole');
     expect(text).toContain('export type Role');
@@ -466,7 +457,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/db/client.ts uses drizzle + postgres and reads DATABASE_URL lazily', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'client.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'db', 'client.ts'), 'utf8');
     expect(text).toContain("from 'drizzle-orm/postgres-js'");
     expect(text).toContain("from 'postgres'");
     expect(text).toContain('DATABASE_URL');
@@ -477,7 +468,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/db/queries.ts exports typed select + upsert helpers', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'db', 'queries.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'db', 'queries.ts'), 'utf8');
     expect(text).toContain('getUserRoleByClerkId');
     expect(text).toContain('setUserRole');
     expect(text).toContain('eq');
@@ -487,7 +478,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('shared/db/migrations/0000_initial.sql creates user_roles with RLS + auth.jwt sub policy', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0000_initial.sql'),
+      join(SHARED_DIR, 'db', 'migrations', '0000_initial.sql'),
       'utf8',
     );
     expect(text).toContain('CREATE TABLE');
@@ -503,13 +494,13 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/index.ts re-exports schema and queries', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'index.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'index.ts'), 'utf8');
     expect(text).toContain("from './db/schema'");
     expect(text).toContain("from './db/queries'");
   });
 
   it('web/next.config.ts transpiles @{{projectNameKebab}}/shared', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'next.config.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'next.config.ts'), 'utf8');
     expect(text).toContain('transpilePackages');
     expect(text).toContain('@{{projectNameKebab}}/shared');
   });
@@ -522,7 +513,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/drizzle.config.ts points at the schema and Postgres dialect', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'drizzle.config.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'drizzle.config.ts'), 'utf8');
     expect(text).toContain("schema: './db/schema.ts'");
     expect(text).toContain("dialect: 'postgresql'");
     expect(text).toContain('DATABASE_URL');
@@ -532,7 +523,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('current-user helper reads auth() + getDb + getUserRoleByClerkId', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'auth', 'current-user.ts'),
+      join(WEB_DIR, 'lib', 'auth', 'current-user.ts'),
       'utf8',
     );
     expect(text).toContain("import 'server-only'");
@@ -546,7 +537,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('billing page uses Clerk PricingTable and shows the current role', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'billing', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'billing', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain("import { PricingTable } from '@clerk/nextjs'");
@@ -557,7 +548,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('dashboard landing page links to /dashboard/billing', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain("from 'next/link'");
@@ -572,13 +563,13 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   // === Story 3.2 — Billing webhook ===
 
   it('web package.json pins svix for webhook signature verification', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['svix']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('web/lib/env-server.ts reads CLERK_BILLING_WEBHOOK_SIGNING_SECRET behind server-only guard', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env-server.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'env-server.ts'), 'utf8');
     expect(text).toContain("import 'server-only'");
     expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
     expect(text).toContain('billingWebhookSigningSecret');
@@ -587,7 +578,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web/lib/env.ts is browser-safe and does not reference server secrets', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'env.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'env.ts'), 'utf8');
     expect(text).not.toContain("import 'server-only'");
     expect(text).not.toContain('CLERK_SECRET_KEY');
     expect(text).not.toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
@@ -599,7 +590,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('plan-to-role.ts maps paid_tier to paid and defaults unknown to free', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'plan-to-role.ts'),
+      join(WEB_DIR, 'lib', 'billing', 'plan-to-role.ts'),
       'utf8',
     );
     expect(text).toContain("'paid_tier'");
@@ -613,7 +604,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('event-handler.ts handles user.created + subscription.created + subscription.cancelled', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'event-handler.ts'),
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
       'utf8',
     );
     expect(text).toContain("import 'server-only'");
@@ -629,7 +620,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('event-handler downgrades cancelled subscriptions to free', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'event-handler.ts'),
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
       'utf8',
     );
     // Look for the cancelled+deleted case block setting role 'free'.
@@ -638,7 +629,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('event-handler returns processed:false for unknown event types', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'billing', 'event-handler.ts'),
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
       'utf8',
     );
     expect(text).toContain('processed: false');
@@ -647,7 +638,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('clerk-billing route.ts reads raw body BEFORE any JSON parsing (svix requires raw HMAC body)', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
       'utf8',
     );
     // Confirm req.text() appears before any req.json()
@@ -657,7 +648,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('clerk-billing route.ts verifies svix signature and returns 400 on failure', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
       'utf8',
     );
     expect(text).toContain("from 'svix'");
@@ -671,7 +662,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('clerk-billing route.ts delegates to handleBillingEvent and returns 500 on handler error', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
       'utf8',
     );
     expect(text).toContain('handleBillingEvent');
@@ -680,7 +671,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('clerk-billing route.ts does not leak internal errors in the response body', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
       'utf8',
     );
     // Generic error responses only.
@@ -692,7 +683,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('billing page documents that subscription management lives in Clerk UserButton', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'billing', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'billing', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain('UserButton');
@@ -701,7 +692,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   // === Story 3.3 — Three-tier RBAC ===
 
   it('web/lib/auth/roles.ts exports hasRole / isAdmin / isPaid with server-only guard', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'auth', 'roles.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'auth', 'roles.ts'), 'utf8');
     expect(text).toContain("import 'server-only'");
     expect(text).toContain('export async function hasRole');
     expect(text).toContain('export async function isAdmin');
@@ -714,7 +705,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web/lib/auth/use-role.ts is a client hook fetching /api/me/role', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'auth', 'use-role.ts'),
+      join(WEB_DIR, 'lib', 'auth', 'use-role.ts'),
       'utf8',
     );
     expect(text).toContain("'use client'");
@@ -728,7 +719,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('/api/me/role route handler reads auth() and returns JSON', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'api', 'me', 'role', 'route.ts'),
+      join(WEB_DIR, 'app', 'api', 'me', 'role', 'route.ts'),
       'utf8',
     );
     expect(text).toContain('export async function GET');
@@ -741,7 +732,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile/lib/auth/use-role.ts queries Supabase directly via useSupabaseClient', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'lib', 'auth', 'use-role.ts'),
+      join(MOBILE_DIR, 'lib', 'auth', 'use-role.ts'),
       'utf8',
     );
     expect(text).toContain("from '@clerk/clerk-expo'");
@@ -753,7 +744,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('0001_rbac_helpers.sql creates is_super_admin SECURITY DEFINER function', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0001_rbac_helpers.sql'),
+      join(SHARED_DIR, 'db', 'migrations', '0001_rbac_helpers.sql'),
       'utf8',
     );
     expect(text).toContain('CREATE OR REPLACE FUNCTION public.is_super_admin');
@@ -766,7 +757,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('0001_rbac_helpers.sql adds the select_user_roles_admin policy using the helper', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0001_rbac_helpers.sql'),
+      join(SHARED_DIR, 'db', 'migrations', '0001_rbac_helpers.sql'),
       'utf8',
     );
     expect(text).toContain('CREATE POLICY "select_user_roles_admin"');
@@ -779,7 +770,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web RoleGate is a client component using useRole + hierarchy check', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+      join(WEB_DIR, 'components', 'auth', 'RoleGate.tsx'),
       'utf8',
     );
     expect(text).toContain("'use client'");
@@ -794,7 +785,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web RoleGate renders fallback on insufficient role and default to PaywallPrompt', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+      join(WEB_DIR, 'components', 'auth', 'RoleGate.tsx'),
       'utf8',
     );
     expect(text).toContain('fallback ?? <PaywallPrompt />');
@@ -802,7 +793,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web PaywallPrompt links to /dashboard/billing via next/link', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'auth', 'PaywallPrompt.tsx'),
+      join(WEB_DIR, 'components', 'auth', 'PaywallPrompt.tsx'),
       'utf8',
     );
     expect(text).toContain("from 'next/link'");
@@ -811,7 +802,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('demo paid-feature page uses RoleGate with requiredRole="paid"', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'paid-feature', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'paid-feature', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain('RoleGate');
@@ -820,7 +811,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile RoleGate uses the mobile useRole hook', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'components', 'auth', 'RoleGate.tsx'),
+      join(MOBILE_DIR, 'components', 'auth', 'RoleGate.tsx'),
       'utf8',
     );
     expect(text).toContain('useRole');
@@ -832,7 +823,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile PaywallPrompt uses expo-router Link + React Native primitives', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'components', 'auth', 'PaywallPrompt.tsx'),
+      join(MOBILE_DIR, 'components', 'auth', 'PaywallPrompt.tsx'),
       'utf8',
     );
     expect(text).toContain("from 'expo-router'");
@@ -843,11 +834,11 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('hierarchy ordering is the same on web and mobile RoleGate', async () => {
     const webText = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'auth', 'RoleGate.tsx'),
+      join(WEB_DIR, 'components', 'auth', 'RoleGate.tsx'),
       'utf8',
     );
     const mobileText = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'components', 'auth', 'RoleGate.tsx'),
+      join(MOBILE_DIR, 'components', 'auth', 'RoleGate.tsx'),
       'utf8',
     );
     // Both files should define the same hierarchy literal.
@@ -860,7 +851,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web app-store is a client module using zustand + persist + createJSONStorage', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      join(WEB_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     expect(text).toContain("'use client'");
@@ -873,7 +864,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web app-store returns undefined storage on the server (SSR-safe)', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      join(WEB_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     // Guard the window reference so Next.js server components don't crash.
@@ -883,7 +874,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web app-store partialize excludes ephemeral drawerOpen from persistence', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      join(WEB_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     expect(text).toContain('partialize');
@@ -894,7 +885,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web app-store uses the projectNameKebab-app storage key token', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      join(WEB_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     expect(text).toContain('{{projectNameKebab}}-app');
@@ -902,7 +893,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile app-store uses zustand + persist backed by react-native-mmkv', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      join(MOBILE_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     expect(text).toContain("from 'zustand'");
@@ -916,7 +907,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile app-store wraps MMKV in a StateStorage adapter', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      join(MOBILE_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     expect(text).toContain('StateStorage');
@@ -927,7 +918,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile app-store partialize excludes drawerOpen from persistence', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      join(MOBILE_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     expect(text).toContain('partialize');
@@ -937,11 +928,11 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web AppState and mobile AppState share the same slice shape', async () => {
     const webText = await readFile(
-      join(MONOLITH_DIR, 'web', 'stores', 'app-store.ts'),
+      join(WEB_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     const mobileText = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'stores', 'app-store.ts'),
+      join(MOBILE_DIR, 'stores', 'app-store.ts'),
       'utf8',
     );
     // Both files must export the same AppState shape so shared code can
@@ -959,7 +950,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard page imports OnboardingGreeting (store demo consumer)', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain('OnboardingGreeting');
@@ -968,7 +959,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web OnboardingGreeting is a client component reading useAppStore', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'shared', 'OnboardingGreeting.tsx'),
+      join(WEB_DIR, 'components', 'shared', 'OnboardingGreeting.tsx'),
       'utf8',
     );
     expect(text).toContain("'use client'");
@@ -979,7 +970,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile home tab imports useAppStore to prove the store works', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', 'index.tsx'),
+      join(MOBILE_DIR, 'app', '(tabs)', 'index.tsx'),
       'utf8',
     );
     expect(text).toContain('useAppStore');
@@ -987,13 +978,13 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web package.json pins zustand', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['zustand']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('mobile package.json pins zustand + react-native-mmkv', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['zustand']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['react-native-mmkv']).toMatch(/^\d+\.\d+\.\d+$/);
@@ -1003,7 +994,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('shared profile-form schema uses z.object and derives its type via z.infer', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'shared', 'validation', 'profile-form.ts'),
+      join(SHARED_DIR, 'validation', 'profile-form.ts'),
       'utf8',
     );
     expect(text).toContain("from 'zod'");
@@ -1015,7 +1006,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('shared profile-form schema defines displayName + bio + website with validation', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'shared', 'validation', 'profile-form.ts'),
+      join(SHARED_DIR, 'validation', 'profile-form.ts'),
       'utf8',
     );
     expect(text).toContain('displayName');
@@ -1028,12 +1019,12 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('shared/index.ts re-exports the profile-form schema', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'index.ts'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'index.ts'), 'utf8');
     expect(text).toContain("from './validation/profile-form'");
   });
 
   it('shared/package.json pins zod', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'shared', 'package.json'), 'utf8');
+    const text = await readFile(join(SHARED_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['zod']).toMatch(/^\d+\.\d+\.\d+$/);
   });
@@ -1043,7 +1034,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     // implements the Standard Schema spec and the standard-schema resolver
     // avoids cross-workspace type resolution issues with zodResolver.
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
+      join(WEB_DIR, 'components', 'forms', 'ProfileForm.tsx'),
       'utf8',
     );
     expect(text).toContain("'use client'");
@@ -1055,7 +1046,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web ProfileForm imports the shared schema via the workspace package', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
+      join(WEB_DIR, 'components', 'forms', 'ProfileForm.tsx'),
       'utf8',
     );
     expect(text).toContain('@{{projectNameKebab}}/shared');
@@ -1065,7 +1056,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web ProfileForm renders inline per-field error messages with role="alert"', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'forms', 'ProfileForm.tsx'),
+      join(WEB_DIR, 'components', 'forms', 'ProfileForm.tsx'),
       'utf8',
     );
     expect(text).toContain('role="alert"');
@@ -1076,7 +1067,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web settings page renders <ProfileForm />', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'settings', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'settings', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@/components/forms/ProfileForm'");
@@ -1085,7 +1076,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile ProfileForm uses Controller (RHF pattern for uncontrolled RN inputs)', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'components', 'forms', 'ProfileForm.tsx'),
+      join(MOBILE_DIR, 'components', 'forms', 'ProfileForm.tsx'),
       'utf8',
     );
     expect(text).toContain("from 'react-hook-form'");
@@ -1096,7 +1087,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile ProfileForm imports the shared schema via the workspace package', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'components', 'forms', 'ProfileForm.tsx'),
+      join(MOBILE_DIR, 'components', 'forms', 'ProfileForm.tsx'),
       'utf8',
     );
     expect(text).toContain('@{{projectNameKebab}}/shared');
@@ -1106,7 +1097,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile settings tab renders <ProfileForm />', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', 'settings.tsx'),
+      join(MOBILE_DIR, 'app', '(tabs)', 'settings.tsx'),
       'utf8',
     );
     expect(text).toContain('ProfileForm');
@@ -1115,14 +1106,14 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile tabs layout registers the settings tab', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '(tabs)', '_layout.tsx'),
+      join(MOBILE_DIR, 'app', '(tabs)', '_layout.tsx'),
       'utf8',
     );
     expect(text).toContain('name="settings"');
   });
 
   it('web package.json pins react-hook-form, @hookform/resolvers, zod', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['react-hook-form']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['@hookform/resolvers']).toMatch(/^\d+\.\d+\.\d+$/);
@@ -1130,7 +1121,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile package.json pins react-hook-form, @hookform/resolvers, zod', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as { dependencies: Record<string, string> };
     expect(parsed.dependencies['react-hook-form']).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.dependencies['@hookform/resolvers']).toMatch(/^\d+\.\d+\.\d+$/);
@@ -1140,20 +1131,20 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   // === Story 4.3 — Tailwind 4, shadcn base components, NativeWind ===
 
   it('web postcss.config.mjs registers @tailwindcss/postcss', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'postcss.config.mjs'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'postcss.config.mjs'), 'utf8');
     expect(text).toContain('@tailwindcss/postcss');
   });
 
   it('web globals.css imports Tailwind v4 CSS-first', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'globals.css'),
+      join(WEB_DIR, 'app', 'globals.css'),
       'utf8',
     );
     expect(text).toContain("@import 'tailwindcss'");
   });
 
   it('web cn.ts combines clsx + tailwind-merge', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'lib', 'cn.ts'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'lib', 'cn.ts'), 'utf8');
     expect(text).toContain("from 'clsx'");
     expect(text).toContain("from 'tailwind-merge'");
     expect(text).toContain('twMerge(clsx');
@@ -1161,7 +1152,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web components.json is a valid shadcn config pointing to cn alias', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'components.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'components.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       tsx: boolean;
       rsc: boolean;
@@ -1177,7 +1168,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web Button uses cn() and forwardRef', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'ui', 'Button.tsx'),
+      join(WEB_DIR, 'components', 'ui', 'Button.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@/lib/cn'");
@@ -1188,7 +1179,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web Card exports Card, CardHeader, CardTitle, CardContent', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'ui', 'Card.tsx'),
+      join(WEB_DIR, 'components', 'ui', 'Card.tsx'),
       'utf8',
     );
     expect(text).toContain('export function Card');
@@ -1200,7 +1191,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web Skeleton primitive uses animate-pulse and is aria-hidden', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'ui', 'Skeleton.tsx'),
+      join(WEB_DIR, 'components', 'ui', 'Skeleton.tsx'),
       'utf8',
     );
     expect(text).toContain('animate-pulse');
@@ -1210,7 +1201,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web SkeletonCard composes base Skeleton + Card primitives', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'shared', 'SkeletonCard.tsx'),
+      join(WEB_DIR, 'components', 'shared', 'SkeletonCard.tsx'),
       'utf8',
     );
     expect(text).toContain("from '@/components/ui/Card'");
@@ -1220,7 +1211,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web SkeletonTable accepts rowCount and marks the region aria-busy', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'components', 'shared', 'SkeletonTable.tsx'),
+      join(WEB_DIR, 'components', 'shared', 'SkeletonTable.tsx'),
       'utf8',
     );
     expect(text).toContain('rowCount');
@@ -1230,7 +1221,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard loading.tsx renders SkeletonCard as route-level loader', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'loading.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'loading.tsx'),
       'utf8',
     );
     expect(text).toContain('SkeletonCard');
@@ -1241,7 +1232,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web dashboard layout uses semantic <header>, <nav aria-label>, and <main>', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'layout.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'layout.tsx'),
       'utf8',
     );
     expect(text).toContain('<header');
@@ -1252,7 +1243,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('web billing page uses aria-labelledby on the section heading', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'dashboard', 'billing', 'page.tsx'),
+      join(WEB_DIR, 'app', 'dashboard', 'billing', 'page.tsx'),
       'utf8',
     );
     expect(text).toContain('aria-labelledby="billing-heading"');
@@ -1260,7 +1251,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('web package.json pins tailwindcss, @tailwindcss/postcss, tailwind-merge, clsx', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'package.json'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
@@ -1273,7 +1264,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile tailwind.config.js uses the NativeWind preset and targets app/components globs', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'tailwind.config.js'),
+      join(MOBILE_DIR, 'tailwind.config.js'),
       'utf8',
     );
     expect(text).toContain("require('nativewind/preset')");
@@ -1282,7 +1273,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile global.css contains the Tailwind directives', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'global.css'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'global.css'), 'utf8');
     expect(text).toContain('@tailwind base');
     expect(text).toContain('@tailwind components');
     expect(text).toContain('@tailwind utilities');
@@ -1290,7 +1281,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile metro.config.js wraps the Expo config with withNativeWind', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'metro.config.js'),
+      join(MOBILE_DIR, 'metro.config.js'),
       'utf8',
     );
     expect(text).toContain("require('expo/metro-config')");
@@ -1301,7 +1292,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile babel.config.js chains nativewind/babel after babel-preset-expo', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'babel.config.js'),
+      join(MOBILE_DIR, 'babel.config.js'),
       'utf8',
     );
     expect(text).toContain('babel-preset-expo');
@@ -1311,20 +1302,20 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile nativewind-env.d.ts references nativewind/types', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'nativewind-env.d.ts'),
+      join(MOBILE_DIR, 'nativewind-env.d.ts'),
       'utf8',
     );
     expect(text).toContain('/// <reference types="nativewind/types" />');
   });
 
   it('mobile tsconfig.json includes nativewind-env.d.ts', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'tsconfig.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'tsconfig.json'), 'utf8');
     expect(text).toContain('nativewind-env.d.ts');
   });
 
   it('mobile root layout imports global.css so Metro picks up NativeWind styles', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'app', '_layout.tsx'),
+      join(MOBILE_DIR, 'app', '_layout.tsx'),
       'utf8',
     );
     expect(text).toContain("import '../global.css'");
@@ -1332,7 +1323,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile SkeletonCard uses className (NativeWind) on RN primitives', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'components', 'shared', 'SkeletonCard.tsx'),
+      join(MOBILE_DIR, 'components', 'shared', 'SkeletonCard.tsx'),
       'utf8',
     );
     expect(text).toContain("from 'react-native'");
@@ -1341,7 +1332,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   });
 
   it('mobile package.json pins nativewind, tailwindcss, react-native-reanimated', async () => {
-    const text = await readFile(join(MONOLITH_DIR, 'mobile', 'package.json'), 'utf8');
+    const text = await readFile(join(MOBILE_DIR, 'package.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
@@ -1401,7 +1392,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     // longer under the `/flat` subpath and no longer a factory function.
     // The package default export is now a flat-config array, spread via
     // `...next`.
-    const text = await readFile(join(MONOLITH_DIR, 'web', 'eslint.config.mjs'), 'utf8');
+    const text = await readFile(join(WEB_DIR, 'eslint.config.mjs'), 'utf8');
     expect(text).toContain("from 'eslint-config-next'");
     expect(text).not.toContain("from 'eslint-config-next/flat'");
     expect(text).toContain("from 'eslint-config-prettier'");
@@ -1410,7 +1401,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('mobile eslint.config.mjs uses typescript-eslint + prettier disable', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'mobile', 'eslint.config.mjs'),
+      join(MOBILE_DIR, 'eslint.config.mjs'),
       'utf8',
     );
     expect(text).toContain("from 'typescript-eslint'");
@@ -1442,7 +1433,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('supabase client.ts comments explain native 3P auth and warn against deprecated JWT template', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'lib', 'supabase', 'client.ts'),
+      join(WEB_DIR, 'lib', 'supabase', 'client.ts'),
       'utf8',
     );
     // The comment block must mention the native callback AND explicitly
@@ -1454,7 +1445,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('initial migration comments explain RLS construction and auth.jwt sub', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'shared', 'db', 'migrations', '0000_initial.sql'),
+      join(SHARED_DIR, 'db', 'migrations', '0000_initial.sql'),
       'utf8',
     );
     expect(text).toContain('RLS');
@@ -1464,7 +1455,7 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
 
   it('clerk-billing route.ts comments explain signature validation on raw body', async () => {
     const text = await readFile(
-      join(MONOLITH_DIR, 'web', 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
       'utf8',
     );
     // Comments must mention signature validation running before JSON parse.
@@ -1614,14 +1605,20 @@ describe('templates/monolith end-to-end scaffold', () => {
       resolvedInputs: { projectName: 'my-app', template: 'monolith', pm: 'pnpm' },
     });
 
-    const layout = await readFile(join(targetDir, 'web', 'app', 'layout.tsx'), 'utf8');
+    const layout = await readFile(
+      join(targetDir, 'apps', 'web', 'app', 'layout.tsx'),
+      'utf8',
+    );
     expect(layout).toContain("title: 'my-app'");
 
-    const appJson = await readFile(join(targetDir, 'mobile', 'app.json'), 'utf8');
+    const appJson = await readFile(join(targetDir, 'apps', 'mobile', 'app.json'), 'utf8');
     expect(appJson).toContain('"name": "my-app"');
     expect(appJson).toContain('"slug": "my-app"');
 
-    const sharedPkg = await readFile(join(targetDir, 'shared', 'package.json'), 'utf8');
+    const sharedPkg = await readFile(
+      join(targetDir, 'packages', 'shared', 'package.json'),
+      'utf8',
+    );
     expect(sharedPkg).toContain('@my-app/shared');
   });
 

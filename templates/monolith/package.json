@@ -2,23 +2,23 @@
   "name": "{{projectName}}",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["web", "mobile", "shared"],
+  "workspaces": ["apps/*", "packages/*"],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev:web": "{{pmRunCmd}} --prefix web dev",
-    "dev:mobile": "{{pmRunCmd}} --prefix mobile start",
-    "build:web": "{{pmRunCmd}} --prefix web build",
-    "typecheck": "tsc -b web mobile shared --noEmit",
-    "lint": "{{pmRunCmd}} --prefix web lint",
+    "dev:web": "{{pmRunCmd}} --prefix apps/web dev",
+    "dev:mobile": "{{pmRunCmd}} --prefix apps/mobile start",
+    "build:web": "{{pmRunCmd}} --prefix apps/web build",
+    "typecheck": "tsc -b apps/web apps/mobile packages/shared --noEmit",
+    "lint": "{{pmRunCmd}} --prefix apps/web lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "db:generate": "{{pmRunCmd}} --prefix shared db:generate",
-    "db:migrate": "{{pmRunCmd}} --prefix shared db:migrate",
-    "db:push": "{{pmRunCmd}} --prefix shared db:push",
-    "db:studio": "{{pmRunCmd}} --prefix shared db:studio"
+    "db:generate": "{{pmRunCmd}} --prefix packages/shared db:generate",
+    "db:migrate": "{{pmRunCmd}} --prefix packages/shared db:migrate",
+    "db:push": "{{pmRunCmd}} --prefix packages/shared db:push",
+    "db:studio": "{{pmRunCmd}} --prefix packages/shared db:studio"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",

@@ -65,9 +65,9 @@ describe('TEMPLATES matrix', () => {
   });
 
   it('monolith additionally requires the three workspace package.json files', () => {
-    expect(TEMPLATES.monolith.requiredFiles).toContain('web/package.json');
-    expect(TEMPLATES.monolith.requiredFiles).toContain('mobile/package.json');
-    expect(TEMPLATES.monolith.requiredFiles).toContain('shared/package.json');
+    expect(TEMPLATES.monolith.requiredFiles).toContain('apps/web/package.json');
+    expect(TEMPLATES.monolith.requiredFiles).toContain('apps/mobile/package.json');
+    expect(TEMPLATES.monolith.requiredFiles).toContain('packages/shared/package.json');
   });
 });
 

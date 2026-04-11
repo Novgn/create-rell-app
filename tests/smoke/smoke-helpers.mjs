@@ -66,9 +66,9 @@ export const TEMPLATES = Object.freeze({
       'README.md',
       '.env.example',
       '.gitignore',
-      'web/package.json',
-      'mobile/package.json',
-      'shared/package.json',
+      'apps/web/package.json',
+      'apps/mobile/package.json',
+      'packages/shared/package.json',
     ]),
   }),
 });
