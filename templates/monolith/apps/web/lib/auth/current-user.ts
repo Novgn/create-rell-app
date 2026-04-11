@@ -12,6 +12,7 @@ import 'server-only';
 // centralizing the `auth() + getDb() + query` chain keeps the call sites
 // one-liners and ensures every caller defaults to 'free' the same way.
 
+import { cache } from 'react';
 import { auth } from '@clerk/nextjs/server';
 import { getDb, getUserRoleByClerkId, type Role } from '@{{projectNameKebab}}/shared';
 
@@ -27,14 +28,18 @@ export interface CurrentUserWithRole {
  * no row in `user_roles`, returns `{ role: 'free' }` — the defensive
  * default handles new sign-ups before the billing webhook has populated
  * their row.
+ *
+ * Wrapped in React's cache() so duplicate calls within a single render dedupe.
  */
-export async function getCurrentUserWithRole(): Promise<CurrentUserWithRole | null> {
-  const { userId } = await auth();
-  if (!userId) return null;
+export const getCurrentUserWithRole = cache(
+  async (): Promise<CurrentUserWithRole | null> => {
+    const { userId } = await auth();
+    if (!userId) return null;
 
-  const row = await getUserRoleByClerkId(getDb(), userId);
-  return {
-    clerkUserId: userId,
-    role: row?.role ?? 'free',
-  };
-}
+    const row = await getUserRoleByClerkId(getDb(), userId);
+    return {
+      clerkUserId: userId,
+      role: row?.role ?? 'free',
+    };
+  },
+);

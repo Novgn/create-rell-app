@@ -694,9 +694,13 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
   it('web/lib/auth/roles.ts exports hasRole / isAdmin / isPaid with server-only guard', async () => {
     const text = await readFile(join(WEB_DIR, 'lib', 'auth', 'roles.ts'), 'utf8');
     expect(text).toContain("import 'server-only'");
-    expect(text).toContain('export async function hasRole');
-    expect(text).toContain('export async function isAdmin');
-    expect(text).toContain('export async function isPaid');
+    // Helpers are wrapped in React's cache() to dedupe within a single render,
+    // so each symbol is exported as a `const` rather than as an `async function`.
+    expect(text).toContain("import { cache } from 'react'");
+    expect(text).toContain('export const hasRole = cache(');
+    expect(text).toContain('export const currentUserHasRole = cache(');
+    expect(text).toContain('export const isAdmin = cache(');
+    expect(text).toContain('export const isPaid = cache(');
     expect(text).toContain('getUserRoleByClerkId');
     expect(text).toContain('getDb');
     // isPaid must return true for super_admin (admins implicitly have paid access)
