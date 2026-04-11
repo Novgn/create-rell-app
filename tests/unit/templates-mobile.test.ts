@@ -29,7 +29,7 @@ const EXPECTED_MOBILE_FILES: ReadonlyArray<string> = [
   'tailwind.config.js',
   'nativewind-env.d.ts',
   'global.css',
-  'eslint.config.mjs',
+  '_eslint.config.mjs',
   'drizzle.config.ts',
   // db/
   'db/README.md',

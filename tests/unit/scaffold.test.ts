@@ -183,6 +183,10 @@ describe('renameSpecialFiles', () => {
     expect(renameSpecialFiles('_tsconfig.json')).toBe('tsconfig.json');
   });
 
+  it('renames _eslint.config.mjs to eslint.config.mjs (hides template eslint configs from IDE eslint LSP)', () => {
+    expect(renameSpecialFiles('_eslint.config.mjs')).toBe('eslint.config.mjs');
+  });
+
   it('passes regular filenames through unchanged', () => {
     expect(renameSpecialFiles('package.json')).toBe('package.json');
   });

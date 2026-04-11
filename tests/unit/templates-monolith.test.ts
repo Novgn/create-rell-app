@@ -108,8 +108,8 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/mobile/nativewind-env.d.ts',
   'apps/mobile/components/shared/SkeletonCard.tsx',
   '_husky/pre-commit',
-  'apps/web/eslint.config.mjs',
-  'apps/mobile/eslint.config.mjs',
+  'apps/web/_eslint.config.mjs',
+  'apps/mobile/_eslint.config.mjs',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -1419,21 +1419,21 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(parsed.devDependencies['eslint-config-prettier']).toMatch(exact);
   });
 
-  it('web eslint.config.mjs extends eslint-config-next and eslint-config-prettier', async () => {
+  it('web _eslint.config.mjs extends eslint-config-next and eslint-config-prettier', async () => {
     // Story 6.1: Next.js 16 renamed the flat-config entry point — it's no
     // longer under the `/flat` subpath and no longer a factory function.
     // The package default export is now a flat-config array, spread via
     // `...next`.
-    const text = await readFile(join(WEB_DIR, 'eslint.config.mjs'), 'utf8');
+    const text = await readFile(join(WEB_DIR, '_eslint.config.mjs'), 'utf8');
     expect(text).toContain("from 'eslint-config-next'");
     expect(text).not.toContain("from 'eslint-config-next/flat'");
     expect(text).toContain("from 'eslint-config-prettier'");
     expect(text).toContain('no-explicit-any');
   });
 
-  it('mobile eslint.config.mjs uses typescript-eslint + prettier disable', async () => {
+  it('mobile _eslint.config.mjs uses typescript-eslint + prettier disable', async () => {
     const text = await readFile(
-      join(MOBILE_DIR, 'eslint.config.mjs'),
+      join(MOBILE_DIR, '_eslint.config.mjs'),
       'utf8',
     );
     expect(text).toContain("from 'typescript-eslint'");

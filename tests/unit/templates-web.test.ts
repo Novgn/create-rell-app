@@ -27,7 +27,7 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   'next-env.d.ts',
   'postcss.config.mjs',
   'components.json',
-  'eslint.config.mjs',
+  '_eslint.config.mjs',
   'middleware.ts',
   'drizzle.config.ts',
   // db/

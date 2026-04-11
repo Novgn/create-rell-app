@@ -88,6 +88,15 @@ const SPECIAL_FILENAME_RENAMES: ReadonlyMap<string, string> = new Map([
   // "cannot find module '@clerk/nextjs/server'" errors for every import.
   // The scaffold engine renames them back to `tsconfig.json` on write.
   ['_tsconfig.json', 'tsconfig.json'],
+  // `eslint.config.mjs` files in templates are shipped under
+  // `_eslint.config.mjs` for the same reason: when a contributor opens a
+  // template file, the IDE's eslint LSP walks up looking for the nearest
+  // `eslint.config.*` and runs the template's typescript-eslint parser
+  // against the file. That parser auto-discovers tsconfig candidates and
+  // bails with "multiple candidate TSConfigRootDirs" because the repo has
+  // several `tsconfig.json`-containing trees (root + templates). The
+  // scaffold engine renames it back to `eslint.config.mjs` on write.
+  ['_eslint.config.mjs', 'eslint.config.mjs'],
 ]);
 
 export interface ScaffoldOptions {
