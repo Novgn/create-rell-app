@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Secure token cache for Clerk Expo.
 //
 // Clerk's `<ClerkProvider>` on React Native needs a `tokenCache` prop so the

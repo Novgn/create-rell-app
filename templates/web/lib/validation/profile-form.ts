@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Shared Zod schema for the example Profile form.
 //
 // Why this file lives in `lib/validation/` rather than next to the form:

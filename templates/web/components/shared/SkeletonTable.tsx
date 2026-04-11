@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // SkeletonTable — placeholder for tabular data. Renders a fixed number of
 // rows with alternating widths so the pulse animation reads as "loading rows"
 // rather than "empty state".

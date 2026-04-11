@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // @{{projectNameKebab}}/shared — barrel export.
 //
 // This package holds code used by both `web/` and `mobile/`:

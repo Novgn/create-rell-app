@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Feature flag abstraction for {{projectName}}.
 //
 // Defaults to reading `NEXT_PUBLIC_FLAG_<NAME>` or `FLAG_<NAME>` from the

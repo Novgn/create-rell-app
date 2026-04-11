@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Drizzle client factory for {{projectName}}.
 //
 // `shared/` can't import from `web/lib/env.ts` or `mobile/lib/env.ts`

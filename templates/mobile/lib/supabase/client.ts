@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Mobile Supabase client for {{projectName}}.
 //
 // Uses Clerk's **native third-party auth** integration: the Supabase client

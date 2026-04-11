@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Typed query helpers for {{projectName}}.
 //
 // Every helper takes a `db` client as its first argument so callers can

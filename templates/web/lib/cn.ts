@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // `cn()` — the canonical shadcn/ui utility for merging class names.
 //
 // `clsx` handles conditional class composition (falsy values are dropped,

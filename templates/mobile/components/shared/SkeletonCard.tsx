@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Mobile SkeletonCard — NativeWind-styled placeholder matching a card layout.
 //
 // Uses `className` on RN primitives (enabled by the NativeWind Babel preset

@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Minimal shadcn-style Button (Story 4.3).
 //
 // Ships inline rather than via `npx shadcn add button` so the first scaffold

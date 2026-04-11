@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Example form — React Hook Form + Zod on React Native (Story 4.2).
 //
 // Mirrors the web ProfileForm but uses `Controller` instead of `register`.

@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Runtime environment variable validation for {{projectName}} (mobile).
 //
 // Expo uses the `EXPO_PUBLIC_` prefix for values that are safe to ship to

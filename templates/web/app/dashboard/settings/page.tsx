@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 import { ProfileForm } from '@/components/forms/ProfileForm';
 
 // Demo settings route for Story 4.2. The page itself stays a Server Component

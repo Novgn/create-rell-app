@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Mobile RoleGate component for {{projectName}}.
 //
 // Same shape as the web version — wraps children and conditionally

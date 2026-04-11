@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // SkeletonCard — domain-specific skeleton matching the Card + Header + Content
 // layout. Use this from `loading.tsx` or inside suspense boundaries for
 // per-card placeholder UI.

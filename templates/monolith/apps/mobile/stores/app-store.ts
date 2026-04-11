@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Zustand application store — mobile (Expo / React Native).
 //
 // Story 4.1. Mirrors the web store's shape intentionally — only the storage

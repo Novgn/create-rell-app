@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Minimal shadcn-style Card (Story 4.3).
 //
 // Exports the Card + CardHeader + CardTitle + CardContent sub-components as

@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Browser-safe environment variables for {{projectName}} (web).
 //
 // This module is imported by BOTH client and server components. It may

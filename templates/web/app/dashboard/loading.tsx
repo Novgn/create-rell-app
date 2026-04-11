@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Dashboard route-level loading UI (Story 4.3).
 //
 // Next.js renders this file automatically while any server data fetch inside

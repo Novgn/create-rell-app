@@ -10,6 +10,7 @@ import {
   isBinaryFile,
   renameSpecialFiles,
   scaffoldProject,
+  stripTemplateNoCheck,
   substitutePathSegment,
   substituteVariables,
   toKebabCase,
@@ -87,6 +88,37 @@ describe('toKebabCase', () => {
 
   it('preserves digits', () => {
     expect(toKebabCase('App2')).toBe('app2');
+  });
+});
+
+describe('stripTemplateNoCheck', () => {
+  it('strips a leading `// @ts-nocheck` marker line', () => {
+    const input = '// @ts-nocheck -- template-only\nexport const x = 1;\n';
+    expect(stripTemplateNoCheck(input)).toBe('export const x = 1;\n');
+  });
+
+  it('strips with CRLF line endings', () => {
+    const input = '// @ts-nocheck -- template-only\r\nexport const x = 1;\r\n';
+    expect(stripTemplateNoCheck(input)).toBe('export const x = 1;\r\n');
+  });
+
+  it('strips a bare `// @ts-nocheck` line with no trailing comment', () => {
+    const input = '// @ts-nocheck\nexport const x = 1;\n';
+    expect(stripTemplateNoCheck(input)).toBe('export const x = 1;\n');
+  });
+
+  it('leaves files without the marker unchanged', () => {
+    const input = "import 'server-only';\nexport const x = 1;\n";
+    expect(stripTemplateNoCheck(input)).toBe(input);
+  });
+
+  it('only strips the FIRST line — does not remove @ts-nocheck later in the file', () => {
+    const input = '// header\n// @ts-nocheck -- still in comment block\nexport const x = 1;\n';
+    expect(stripTemplateNoCheck(input)).toBe(input);
+  });
+
+  it('leaves empty files unchanged', () => {
+    expect(stripTemplateNoCheck('')).toBe('');
   });
 });
 

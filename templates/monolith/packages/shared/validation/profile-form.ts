@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Shared Zod schema for the example Profile form (Story 4.2).
 //
 // Why this file lives in `shared/` and not in the web or mobile workspace:

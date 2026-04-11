@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 import type { Config } from 'drizzle-kit';
 
 // Drizzle Kit config for {{projectName}}. Points at the shared schema and

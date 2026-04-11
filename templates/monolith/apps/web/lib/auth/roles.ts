@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 import 'server-only';
 
 // Server-side RBAC helpers for {{projectName}}.

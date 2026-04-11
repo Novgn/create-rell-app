@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 'use client';
 
 // Demo consumer for the Zustand app store (Story 4.1). This is a tiny

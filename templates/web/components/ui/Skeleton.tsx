@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Minimal shadcn-style Skeleton (Story 4.3).
 //
 // A neutral pulsing placeholder block. Domain-specific skeletons in

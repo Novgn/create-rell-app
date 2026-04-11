@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
 // Protected routes. The dashboard lives at a real `/dashboard` URL

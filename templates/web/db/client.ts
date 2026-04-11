@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Drizzle client factory for {{projectName}}.
 //
 // This module reads `DATABASE_URL` directly from `process.env` rather than

@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Drizzle schema for {{projectName}}.
 //
 // This file is the single source of truth for the {{projectName}} database.

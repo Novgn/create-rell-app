@@ -135,6 +135,27 @@ export function toKebabCase(value: string): string {
 }
 
 /**
+ * Detect and strip the leading `// @ts-nocheck ...` marker line used by
+ * every template TS file. Template files ship with this marker at the top
+ * so that contributors opening them in an IDE don't see phantom module-
+ * resolution errors — template node_modules are never installed, so every
+ * import would otherwise fail at the IDE level. The marker MUST be removed
+ * when copying into a real scaffolded project so the user's TypeScript
+ * checker runs normally against their own installed dependencies.
+ *
+ * The pattern deliberately matches only the very first line and only if it
+ * begins with `// @ts-nocheck` — any file that does not start with the
+ * marker is returned unchanged. This keeps the transform safe for files
+ * that never had the marker in the first place (the two scaffold engine
+ * test fixtures do not, for example).
+ */
+const TS_NOCHECK_LINE_PATTERN = /^\/\/ @ts-nocheck[^\n]*\r?\n/;
+
+export function stripTemplateNoCheck(contents: string): string {
+  return contents.replace(TS_NOCHECK_LINE_PATTERN, '');
+}
+
+/**
  * Replace every `{{key}}` token in `input` with `vars[key]`. Tokens with
  * unknown keys are left in place — silent passthrough is the safer default
  * for catching templating mistakes during smoke tests.
@@ -304,7 +325,11 @@ async function walkAndCopy(
           await copyFile(sourceAbs, destAbs);
         } else {
           const contents = await readFile(sourceAbs, 'utf8');
-          const substituted = substituteVariables(contents, vars);
+          // Strip the leading `// @ts-nocheck` marker before variable
+          // substitution so user projects receive normally-checked
+          // TypeScript. See `stripTemplateNoCheck` for the rationale.
+          const stripped = stripTemplateNoCheck(contents);
+          const substituted = substituteVariables(stripped, vars);
           await writeFile(destAbs, substituted, 'utf8');
         }
         plannedFiles.push(childDestRelative);

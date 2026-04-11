@@ -1,3 +1,4 @@
+// @ts-nocheck -- template-only; the scaffold engine strips this line before writing to user projects so scaffolded output has normal TypeScript checking.
 // Client-side role hook for {{projectName}} (mobile).
 //
 // Unlike the web counterpart, mobile queries the Supabase `user_roles`
