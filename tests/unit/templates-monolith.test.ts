@@ -75,6 +75,7 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/web/app/api/me/role/route.ts',
   'apps/mobile/lib/auth/use-role.ts',
   'packages/shared/db/migrations/0001_rbac_helpers.sql',
+  'packages/shared/db/migrations/0002_webhook_deliveries.sql',
   'apps/web/components/auth/RoleGate.tsx',
   'apps/web/components/auth/PaywallPrompt.tsx',
   'apps/web/app/dashboard/paid-feature/page.tsx',
@@ -1462,6 +1463,175 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toMatch(/signature[^\n]*BEFORE/i);
     expect(text).toContain('raw');
     expect(text).toContain('HMAC');
+  });
+
+  // === Webhook replay safety (svix-id dedupe + user.created insert-only) ===
+
+  it('monolith apps/web package.json has no duplicate dependency keys', async () => {
+    // Regression guard — an earlier edit left two `"zod"` keys on adjacent
+    // lines inside `dependencies`, which JSON.parse silently collapses.
+    // Parse each dependency-bearing block naively by counting key
+    // occurrences so a duplicate sneaking back in fails loudly. Scoped to
+    // the dependency objects so legitimate top-level config blocks like
+    // `"prettier"` don't collide with their devDep entries.
+    const text = await readFile(join(MONOLITH_DIR, 'apps', 'web', 'package.json'), 'utf8');
+    const blocks: Array<[string, string]> = [];
+    for (const key of ['dependencies', 'devDependencies', 'scripts'] as const) {
+      const match = text.match(new RegExp(`"${key}"\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\}`));
+      if (match?.[1]) blocks.push([key, match[1]]);
+    }
+    const dupes: Array<{ block: string; key: string; count: number }> = [];
+    for (const [blockName, body] of blocks) {
+      const keys = body.match(/"[^"]+"\s*:/g) ?? [];
+      const counts = new Map<string, number>();
+      for (const k of keys) counts.set(k, (counts.get(k) ?? 0) + 1);
+      for (const [key, count] of counts) {
+        if (count > 1) dupes.push({ block: blockName, key, count });
+      }
+    }
+    expect(dupes).toEqual([]);
+  });
+
+  it('monolith apps/web package.json declares full DX parity with the solo web template', async () => {
+    // The monolith's apps/web package used to declare only a handful of
+    // runtime deps because drizzle + eslint etc. lived at the root. Once the
+    // web app gained its own db scripts and prettier/lint-staged blocks, it
+    // needed the full toolchain too — bring it to parity with the solo
+    // templates/web/package.json.
+    const text = await readFile(join(MONOLITH_DIR, 'apps', 'web', 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as {
+      scripts: Record<string, string>;
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+      prettier?: unknown;
+      'lint-staged'?: unknown;
+    };
+    // Drizzle scripts
+    expect(parsed.scripts['db:generate']).toBe('drizzle-kit generate');
+    expect(parsed.scripts['db:migrate']).toBe('drizzle-kit migrate');
+    expect(parsed.scripts['db:push']).toBe('drizzle-kit push');
+    expect(parsed.scripts['db:studio']).toBe('drizzle-kit studio');
+    // Runtime deps
+    expect(parsed.dependencies['drizzle-orm']).toBeDefined();
+    expect(parsed.dependencies['postgres']).toBeDefined();
+    // Dev toolchain
+    expect(parsed.devDependencies['drizzle-kit']).toBeDefined();
+    expect(parsed.devDependencies['eslint']).toBeDefined();
+    expect(parsed.devDependencies['eslint-config-next']).toBeDefined();
+    expect(parsed.devDependencies['eslint-config-prettier']).toBeDefined();
+    expect(parsed.devDependencies['typescript-eslint']).toBeDefined();
+    expect(parsed.devDependencies['@eslint/js']).toBeDefined();
+    expect(parsed.devDependencies['@tailwindcss/postcss']).toBeDefined();
+    expect(parsed.devDependencies['tailwindcss']).toBeDefined();
+    expect(parsed.devDependencies['@types/node']).toBeDefined();
+    expect(parsed.devDependencies['@types/react']).toBeDefined();
+    expect(parsed.devDependencies['@types/react-dom']).toBeDefined();
+    expect(parsed.devDependencies['husky']).toBeDefined();
+    expect(parsed.devDependencies['lint-staged']).toBeDefined();
+    expect(parsed.devDependencies['prettier']).toBeDefined();
+    // Config blocks
+    expect(parsed.prettier).toBeDefined();
+    expect(parsed['lint-staged']).toBeDefined();
+  });
+
+  it('monolith apps/web package.json pins the same versions as templates/web/package.json', async () => {
+    // The two files should share every dep name, pinned to the exact same
+    // version. If someone bumps one without the other, the smoke builds
+    // drift silently — guard against that here.
+    const monoText = await readFile(join(MONOLITH_DIR, 'apps', 'web', 'package.json'), 'utf8');
+    const soloText = await readFile(join(TEMPLATES_DIR, 'web', 'package.json'), 'utf8');
+    const mono = JSON.parse(monoText) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const solo = JSON.parse(soloText) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    for (const name of Object.keys(solo.dependencies)) {
+      expect(
+        mono.dependencies[name],
+        `monolith apps/web missing or drifted dependency ${name}`,
+      ).toBe(solo.dependencies[name]);
+    }
+    for (const name of Object.keys(solo.devDependencies)) {
+      expect(
+        mono.devDependencies[name],
+        `monolith apps/web missing or drifted devDependency ${name}`,
+      ).toBe(solo.devDependencies[name]);
+    }
+  });
+
+  it('shared/db/schema.ts exports the webhookDeliveries table for svix replay dedupe', async () => {
+    const text = await readFile(join(SHARED_DIR, 'db', 'schema.ts'), 'utf8');
+    expect(text).toContain('export const webhookDeliveries');
+    expect(text).toContain("'webhook_deliveries'");
+    expect(text).toContain("'svix_id'");
+    expect(text).toContain("'event_type'");
+    expect(text).toContain("'processed_at'");
+    expect(text).toContain('export type WebhookDelivery');
+  });
+
+  it('shared/db/queries.ts exports insertDefaultUserRole and markWebhookSeen', async () => {
+    const text = await readFile(join(SHARED_DIR, 'db', 'queries.ts'), 'utf8');
+    expect(text).toContain('export async function insertDefaultUserRole');
+    expect(text).toContain('export async function markWebhookSeen');
+    // Both helpers must use ON CONFLICT DO NOTHING (insert-only semantics).
+    expect(text).toContain('onConflictDoNothing');
+  });
+
+  it('shared/db/migrations/0002_webhook_deliveries.sql creates the dedupe table with RLS', async () => {
+    const text = await readFile(
+      join(SHARED_DIR, 'db', 'migrations', '0002_webhook_deliveries.sql'),
+      'utf8',
+    );
+    expect(text).toContain('CREATE TABLE IF NOT EXISTS "webhook_deliveries"');
+    expect(text).toContain('"svix_id" text PRIMARY KEY');
+    expect(text).toContain('ENABLE ROW LEVEL SECURITY');
+  });
+
+  it('event-handler.ts user.created case uses insertDefaultUserRole (not setUserRole)', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    // Extract the user.created case block so we don't match setUserRole
+    // references from the subscription.* cases.
+    const match = text.match(/case 'user\.created':[\s\S]*?(?=case '|default:)/);
+    expect(match).not.toBeNull();
+    const block = match?.[0] ?? '';
+    expect(block).not.toContain('setUserRole');
+    expect(block).toContain('insertDefaultUserRole');
+    // Result should still report role 'free'.
+    expect(block).toContain("role: 'free'");
+  });
+
+  it('event-handler.ts imports insertDefaultUserRole and markWebhookSeen from shared', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    expect(text).toContain('insertDefaultUserRole');
+    expect(text).toContain('markWebhookSeen');
+  });
+
+  it('event-handler.ts accepts an optional svixId and short-circuits replays', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    // Signature: handleBillingEvent(event, svixId?)
+    expect(text).toMatch(/handleBillingEvent\(\s*[\s\S]*event:[\s\S]*svixId\?:\s*string/);
+    // Must call markWebhookSeen with svixId before the switch.
+    expect(text).toContain('markWebhookSeen(db, svixId, event.type)');
+  });
+
+  it('clerk-billing route.ts forwards svixId into handleBillingEvent', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain('handleBillingEvent(verifiedEvent, svixId)');
   });
 
   it('no template file uses the deprecated getToken({ template: "supabase" }) JWT pattern', async () => {
