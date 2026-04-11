@@ -21,39 +21,62 @@ export interface UseRoleResult {
   isLoading: boolean;
 }
 
+// Module-level cache so concurrent <RoleGate> mounts share a single fetch.
+// Expo does not ship React's cache() helper, but the module-level memo
+// pattern achieves the same dedupe semantics across component instances.
+// Cleared on sign-out by Clerk's auth state transition in the effect below.
+let cachedRole: Role | null = null;
+let inFlight: Promise<Role> | null = null;
+
+type SupabaseClient = ReturnType<typeof useSupabaseClient>;
+
+function fetchRole(supabase: SupabaseClient, userId: string): Promise<Role> {
+  if (cachedRole !== null) return Promise.resolve(cachedRole);
+  if (inFlight) return inFlight;
+  inFlight = supabase
+    .from('user_roles')
+    .select('role')
+    .eq('clerk_user_id', userId)
+    .maybeSingle()
+    .then(({ data, error }: { data: { role: Role } | null; error: unknown }) => {
+      if (error) throw error;
+      const next: Role = data?.role ?? 'free';
+      cachedRole = next;
+      return next;
+    })
+    .finally(() => {
+      inFlight = null;
+    }) as Promise<Role>;
+  return inFlight;
+}
+
 export function useRole(): UseRoleResult {
   const { isSignedIn, isLoaded, userId } = useAuth();
   const supabase = useSupabaseClient();
-  const [fetchedRole, setFetchedRole] = useState<Role | null>(null);
-
-  const shouldFetch = isLoaded === true && isSignedIn === true && userId != null;
+  const [role, setRoleState] = useState<Role | null>(cachedRole);
 
   useEffect(() => {
-    if (!shouldFetch) return;
-
+    if (!isLoaded) return;
+    if (!isSignedIn || userId == null) {
+      cachedRole = null;
+      setRoleState(null);
+      return;
+    }
     let cancelled = false;
-
-    supabase
-      .from('user_roles')
-      .select('role')
-      .eq('clerk_user_id', userId)
-      .maybeSingle()
-      .then(({ data, error }: { data: { role: Role } | null; error: unknown }) => {
-        if (cancelled) return;
-        if (error) {
-          console.error('[useRole] failed to fetch role:', error);
-          setFetchedRole('free');
-        } else {
-          setFetchedRole(data?.role ?? 'free');
-        }
+    fetchRole(supabase, userId)
+      .then((r) => {
+        if (!cancelled) setRoleState(r);
+      })
+      .catch((err) => {
+        console.error('[useRole] failed to fetch role:', err);
+        if (!cancelled) setRoleState('free');
       });
-
     return () => {
       cancelled = true;
     };
-  }, [shouldFetch, userId, supabase]);
+  }, [isLoaded, isSignedIn, userId, supabase]);
 
   if (!isLoaded) return { role: null, isLoading: true };
   if (!isSignedIn) return { role: null, isLoading: false };
-  return { role: fetchedRole, isLoading: fetchedRole === null };
+  return { role, isLoading: role === null };
 }
