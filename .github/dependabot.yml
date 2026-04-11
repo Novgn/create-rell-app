@@ -1,20 +1,40 @@
 # Dependabot configuration.
 #
-# Each ecosystem entry:
-#   - runs weekly (or monthly for github-actions)
-#   - caps open PRs at 2 per workspace to prevent the thundering-herd
-#     "first scan opens 16 PRs at once" problem that happened when this
-#     config was first introduced
-#   - groups minor + patch updates into a single PR per workspace
-#   - ignores major bumps entirely — those require human review and
-#     should be driven from a release cadence, not from Dependabot
+# ── Strategy ────────────────────────────────────────────────────────────────
 #
-# Adjust `open-pull-requests-limit` upward if you want more throughput,
-# but remember each PR triggers the full CI matrix (check + smoke ×
-# ubuntu/macos/windows × Node 22/24) which burns runner minutes quickly.
+# Routine version-updates are ENABLED for the CLI root and GitHub Actions,
+# and DISABLED for the three template workspaces (web, mobile, monolith).
+#
+# Why templates are excluded: Expo, React Native, and Next.js have lockstep
+# version requirements — you can't bump any one of them in isolation without
+# bumping half-a-dozen paired packages at the same time. Dependabot's model
+# is "each dependency is independent", so nearly every auto-bump it proposes
+# against a template breaks smoke tests. The signal-to-noise ratio made
+# routine version-updates actively harmful.
+#
+# What still works for the templates:
+#
+#   - GitHub's repo-level security-alert system (a SEPARATE service from
+#     this config file) continues to fire. It opens a PR automatically
+#     when a CVE is disclosed against a pinned template dep and bumps to
+#     the minimum patched version. Security patches are typically safe
+#     because they're patch-level fixes.
+#
+#   - Manual template bumps during release cadences. That's how
+#     `create-next-app`, `create-t3-app`, and `create-expo` all operate
+#     for this same reason.
+#
+# For the CLI root and GitHub Actions, routine updates are low-breakage
+# because the dependencies are small, stable, and independently maintained.
+#
+# ── Cadence ─────────────────────────────────────────────────────────────────
+#
+#   - CLI root: weekly, at most 2 open PRs, majors ignored, minor+patch grouped
+#   - GitHub Actions: monthly, at most 2 open PRs
+#   - Templates: version-updates disabled (`open-pull-requests-limit: 0`)
 version: 2
 updates:
-  # CLI source deps
+  # CLI source deps — small, stable, routine updates are worth automating.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -29,52 +49,29 @@ updates:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
 
-  # Solo web template
+  # Solo web template — routine version-updates disabled (see header).
+  # Security alerts still fire via GitHub's separate alerts system.
   - package-ecosystem: npm
     directory: /templates/web
     schedule:
       interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      web-template-minor-patch:
-        update-types:
-          - minor
-          - patch
-    ignore:
-      - dependency-name: '*'
-        update-types: ['version-update:semver-major']
+    open-pull-requests-limit: 0
 
-  # Solo mobile template
+  # Solo mobile template — routine version-updates disabled (see header).
   - package-ecosystem: npm
     directory: /templates/mobile
     schedule:
       interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      mobile-template-minor-patch:
-        update-types:
-          - minor
-          - patch
-    ignore:
-      - dependency-name: '*'
-        update-types: ['version-update:semver-major']
+    open-pull-requests-limit: 0
 
-  # Monolith root
+  # Monolith template — routine version-updates disabled (see header).
   - package-ecosystem: npm
     directory: /templates/monolith
     schedule:
       interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      monolith-template-minor-patch:
-        update-types:
-          - minor
-          - patch
-    ignore:
-      - dependency-name: '*'
-        update-types: ['version-update:semver-major']
+    open-pull-requests-limit: 0
 
-  # GitHub Actions
+  # GitHub Actions — monthly cadence, low churn, generally safe to auto-merge.
   - package-ecosystem: github-actions
     directory: /
     schedule:
