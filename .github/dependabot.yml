@@ -1,3 +1,17 @@
+# Dependabot configuration.
+#
+# Each ecosystem entry:
+#   - runs weekly (or monthly for github-actions)
+#   - caps open PRs at 2 per workspace to prevent the thundering-herd
+#     "first scan opens 16 PRs at once" problem that happened when this
+#     config was first introduced
+#   - groups minor + patch updates into a single PR per workspace
+#   - ignores major bumps entirely — those require human review and
+#     should be driven from a release cadence, not from Dependabot
+#
+# Adjust `open-pull-requests-limit` upward if you want more throughput,
+# but remember each PR triggers the full CI matrix (check + smoke ×
+# ubuntu/macos/windows × Node 22/24) which burns runner minutes quickly.
 version: 2
 updates:
   # CLI source deps
@@ -5,47 +19,64 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
       cli-minor-patch:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # Solo web template
   - package-ecosystem: npm
     directory: /templates/web
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
       web-template-minor-patch:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # Solo mobile template
   - package-ecosystem: npm
     directory: /templates/mobile
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
       mobile-template-minor-patch:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # Monolith root
   - package-ecosystem: npm
     directory: /templates/monolith
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
       monolith-template-minor-patch:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2
