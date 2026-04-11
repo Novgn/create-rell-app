@@ -25,3 +25,6 @@ my-project/
 
 # Claude Code config
 .claude/
+
+# Git worktrees for parallel agent work
+.worktrees/
