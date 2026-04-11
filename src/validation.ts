@@ -13,7 +13,7 @@
 //     (refuse to proceed unless the input is safe), and keeping it together
 //     keeps `runCli` short.
 
-import fs from 'fs-extra';
+import { readdir, stat } from 'node:fs/promises';
 
 import type { PackageManagerName, TemplateName } from './index.ts';
 import type { PromptDriver } from './prompts.ts';
@@ -159,17 +159,21 @@ export async function assertTargetDirSafe(
   targetDir: string,
   options: AssertTargetDirSafeOptions,
 ): Promise<void> {
-  const exists = await fs.pathExists(targetDir);
-  if (!exists) return;
+  let targetStat;
+  try {
+    targetStat = await stat(targetDir);
+  } catch {
+    // Path does not exist — safe to scaffold into.
+    return;
+  }
 
-  const stat = await fs.stat(targetDir);
-  if (!stat.isDirectory()) {
+  if (!targetStat.isDirectory()) {
     throw new ValidationError(
       `Target path already exists and is not a directory: ${targetDir}`,
     );
   }
 
-  const entries = await fs.readdir(targetDir);
+  const entries = await readdir(targetDir);
   if (entries.length === 0) {
     // Empty directory — safe to scaffold into.
     return;

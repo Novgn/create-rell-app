@@ -9,14 +9,16 @@
 
 import chalk from 'chalk';
 import { Command } from 'commander';
-import fs from 'fs-extra';
-import { dirname, resolve } from 'node:path';
+import { execa } from 'execa';
+import { stat } from 'node:fs/promises';
+import { dirname, posix as posixPath, resolve, resolve as platformResolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import pkg from '../package.json' with { type: 'json' };
 import {
   cleanupLockFiles,
   defaultProcessRunner,
+  getPackageManagerCommands,
   installDependencies,
   InstallFailedError,
 } from './install.ts';
@@ -52,6 +54,18 @@ export interface CliOptions {
    * left undefined (treated as `true` by `runCli`).
    */
   install?: boolean;
+  /**
+   * Maps to Commander's `--no-git` negation. Commander stores this as
+   * `git: false` when `--no-git` is passed; otherwise the field is left
+   * undefined (treated as `true` by `runCli`).
+   */
+  git?: boolean;
+  /**
+   * Maps to Commander's `--dry-run` flag. When set, runCli walks the
+   * template and prints the files it would write but writes nothing to
+   * disk and skips git init and dependency install.
+   */
+  dryRun?: boolean;
 }
 
 /**
@@ -72,6 +86,11 @@ export function buildProgram(): Command {
     .option('-t, --template <template>', 'template to use (web | mobile | monolith)')
     .option('--pm <packageManager>', 'package manager to use (npm | pnpm | yarn)')
     .option('--no-install', 'skip dependency installation after scaffolding')
+    .option('--no-git', 'skip git repository initialization after scaffolding')
+    .option(
+      '--dry-run',
+      'show files that would be written without touching the filesystem',
+    )
     .action(async (projectName: string, options: CliOptions) => {
       await runCli(projectName, options);
     });
@@ -117,11 +136,34 @@ export function resolveTargetDir(projectName: string, cwd: string = process.cwd(
  * so tests can stub it via dependency injection without mocking modules.
  */
 export interface ScaffoldRunner {
-  (templateDir: string, targetDir: string, resolved: ResolvedInputs): Promise<ScaffoldResult>;
+  (
+    templateDir: string,
+    targetDir: string,
+    resolved: ResolvedInputs,
+    options?: { dryRun?: boolean },
+  ): Promise<ScaffoldResult>;
 }
 
-const defaultScaffoldRunner: ScaffoldRunner = (templateDir, targetDir, resolved) =>
-  scaffoldProject({ templateDir, targetDir, resolvedInputs: resolved });
+const defaultScaffoldRunner: ScaffoldRunner = (templateDir, targetDir, resolved, options) =>
+  scaffoldProject({
+    templateDir,
+    targetDir,
+    resolvedInputs: resolved,
+    dryRun: options?.dryRun ?? false,
+  });
+
+/**
+ * Subprocess runner used to invoke `git`. Defaults to spawning execa
+ * directly. Tests inject a recording fake to assert behavior without
+ * shelling out to a real git binary.
+ */
+export interface GitRunner {
+  (args: ReadonlyArray<string>, options: { cwd: string; env?: NodeJS.ProcessEnv }): Promise<void>;
+}
+
+const defaultGitRunner: GitRunner = async (args, options) => {
+  await execa('git', [...args], { cwd: options.cwd, env: options.env });
+};
 
 export interface RunCliDeps {
   driver?: PromptDriver;
@@ -132,6 +174,12 @@ export interface RunCliDeps {
   installRunner?: ProcessRunner;
   /** Whether to install dependencies after scaffolding. Defaults to `true`. */
   installDeps?: boolean;
+  /** Subprocess runner used to invoke `git` (for tests). */
+  gitRunner?: GitRunner;
+  /** Whether to initialize a git repo after scaffolding. Defaults to `true`. */
+  initGit?: boolean;
+  /** When `true`, the scaffold flow runs in dry-run mode. */
+  dryRun?: boolean;
 }
 
 export async function runCli(
@@ -155,9 +203,15 @@ export async function runCli(
   const templatesDir = deps.templatesDir ?? resolveTemplatesDir();
   const scaffoldRunner = deps.scaffoldRunner ?? defaultScaffoldRunner;
   const installRunner = deps.installRunner ?? defaultProcessRunner;
+  const gitRunner = deps.gitRunner ?? defaultGitRunner;
+  // Dry-run is a global short-circuit: it forces install + git off and
+  // tells the scaffold runner not to write anything.
+  const dryRun = deps.dryRun ?? options.dryRun ?? false;
   // `--no-install` (Commander negation) flips this to false. The deps
   // override (used by tests) takes precedence over the CLI flag default.
-  const shouldInstallDeps = deps.installDeps ?? options.install ?? true;
+  const shouldInstallDeps = dryRun ? false : (deps.installDeps ?? options.install ?? true);
+  // `--no-git` (Commander negation) works the same way.
+  const shouldInitGit = dryRun ? false : (deps.initGit ?? options.git ?? true);
 
   try {
     // === Story 1.5 validation gate ===
@@ -203,7 +257,10 @@ export async function runCli(
       targetDir,
       scaffoldRunner,
       installRunner,
+      gitRunner,
       shouldInstallDeps,
+      shouldInitGit,
+      dryRun,
     });
   } catch (err) {
     if (err instanceof ValidationError) {
@@ -224,22 +281,46 @@ interface ExecuteScaffoldFlowOptions {
   targetDir: string;
   scaffoldRunner: ScaffoldRunner;
   installRunner: ProcessRunner;
+  gitRunner: GitRunner;
   shouldInstallDeps: boolean;
+  shouldInitGit: boolean;
+  dryRun: boolean;
+}
+
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await stat(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function executeScaffoldFlow(opts: ExecuteScaffoldFlowOptions): Promise<void> {
-  const { resolved, templatesDir, targetDir, scaffoldRunner, installRunner, shouldInstallDeps } =
-    opts;
+  const {
+    resolved,
+    templatesDir,
+    targetDir,
+    scaffoldRunner,
+    installRunner,
+    gitRunner,
+    shouldInstallDeps,
+    shouldInitGit,
+    dryRun,
+  } = opts;
   const templateDir = resolve(templatesDir, resolved.template);
 
   console.log('[create-rell-app] resolved configuration:');
   console.log('  project name : %s', resolved.projectName);
   console.log('  template     : %s', resolved.template);
   console.log('  package mgr  : %s', resolved.pm);
+  if (dryRun) {
+    console.log('  mode         : %s', 'dry-run (no files written)');
+  }
 
   // Story 1.3: scaffold if the template directory is shipped, otherwise
   // print a friendly placeholder. Real templates land in Epic 2+.
-  const templateExists = await fs.pathExists(templateDir);
+  const templateExists = await pathExists(templateDir);
   if (!templateExists) {
     console.log(
       '[create-rell-app] template "%s" is not yet bundled — coming in Epic 2. ' +
@@ -249,7 +330,22 @@ async function executeScaffoldFlow(opts: ExecuteScaffoldFlowOptions): Promise<vo
     return;
   }
 
-  const result = await scaffoldRunner(templateDir, targetDir, resolved);
+  const result = await scaffoldRunner(templateDir, targetDir, resolved, { dryRun });
+
+  if (dryRun) {
+    console.log(
+      '[create-rell-app] Would scaffold %d files into %s',
+      result.filesWritten,
+      result.targetDir,
+    );
+    const plannedFiles = result.plannedFiles ?? [];
+    for (const rel of plannedFiles) {
+      console.log('  %s', rel);
+    }
+    console.log(chalk.dim('[create-rell-app] dry-run complete — no files were written'));
+    return;
+  }
+
   console.log(
     '[create-rell-app] scaffolded %d files into %s',
     result.filesWritten,
@@ -258,24 +354,88 @@ async function executeScaffoldFlow(opts: ExecuteScaffoldFlowOptions): Promise<vo
 
   if (!shouldInstallDeps) {
     console.log(chalk.dim('[create-rell-app] skipping dependency install'));
-    return;
-  }
+  } else {
+    // Clean up stale lock files BEFORE running install so the chosen
+    // package manager doesn't get confused by leftovers from a different
+    // one.
+    await cleanupLockFiles(targetDir, resolved.pm);
 
-  // Clean up stale lock files BEFORE running install so the chosen package
-  // manager doesn't get confused by leftovers from a different one.
-  await cleanupLockFiles(targetDir, resolved.pm);
-
-  console.log(chalk.cyan(`Installing dependencies with ${resolved.pm}…`));
-  try {
-    await installDependencies(targetDir, resolved.pm, installRunner);
-    console.log(chalk.green('Done.'));
-  } catch (err) {
-    if (err instanceof InstallFailedError) {
-      console.error(chalk.red(`Install failed: ${err.message}`));
-      process.exit(1);
+    console.log(chalk.cyan(`Installing dependencies with ${resolved.pm}…`));
+    try {
+      await installDependencies(targetDir, resolved.pm, installRunner);
+    } catch (err) {
+      if (err instanceof InstallFailedError) {
+        console.error(chalk.red(`Install failed: ${err.message}`));
+        process.exit(1);
+      }
+      throw err;
     }
-    throw err;
   }
+
+  if (shouldInitGit) {
+    await initGitRepo(targetDir, gitRunner);
+  }
+
+  printNextSteps(resolved, targetDir);
+}
+
+/**
+ * Initialize a git repository inside the freshly scaffolded project and
+ * create an initial commit. Failures are non-fatal: we print a dim warning
+ * and keep going so a missing or misconfigured git install can't break the
+ * scaffold flow.
+ */
+async function initGitRepo(targetDir: string, gitRunner: GitRunner): Promise<void> {
+  const gitDir = resolve(targetDir, '.git');
+  if (await pathExists(gitDir)) return;
+  try {
+    await gitRunner(['init', '--quiet'], { cwd: targetDir });
+    await gitRunner(['add', '.'], { cwd: targetDir });
+    await gitRunner(['commit', '--quiet', '-m', 'chore: initial scaffold'], {
+      cwd: targetDir,
+      // Skip husky hooks on the first commit — the template ships husky
+      // hooks that would otherwise run against an empty commit history.
+      env: { ...process.env, HUSKY: '0' },
+    });
+  } catch {
+    console.log(
+      chalk.dim('[create-rell-app] git init skipped (git not available or commit failed)'),
+    );
+  }
+}
+
+/**
+ * Print a create-next-app-style "next steps" banner after a successful
+ * scaffold so the developer knows exactly which commands to run next.
+ */
+function printNextSteps(resolved: ResolvedInputs, targetDir: string): void {
+  const cmds = getPackageManagerCommands(resolved.pm);
+  // Compute a display-relative cd path when the target sits underneath the
+  // current working directory; otherwise fall back to the absolute path.
+  const absolute = platformResolve(targetDir);
+  const cwd = process.cwd();
+  const relative = absolute.startsWith(cwd)
+    ? './' + posixPath.relative(cwd, absolute).split(/[\\/]/).join('/')
+    : absolute;
+
+  console.log('');
+  console.log(
+    chalk.green('Success!') + ` Created ${resolved.projectName} at ${targetDir}`,
+  );
+  console.log('');
+  console.log('Inside that directory, you can run:');
+  console.log('');
+  console.log('  ' + chalk.cyan(`${cmds.run} dev`));
+  console.log('    Start the dev server');
+  console.log('');
+  console.log('  ' + chalk.cyan(`${cmds.run} build`));
+  console.log('    Build for production');
+  console.log('');
+  console.log('We suggest you begin by typing:');
+  console.log('');
+  console.log('  ' + chalk.cyan(`cd ${relative}`));
+  console.log('  ' + chalk.cyan(`${cmds.run} dev`));
+  console.log('');
 }
 
 /**

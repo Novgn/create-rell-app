@@ -27,7 +27,6 @@
 // unit-tested by tests/unit/smoke-runner.test.ts.
 
 import { execa } from 'execa';
-import fs from 'fs-extra';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -262,13 +261,6 @@ async function main() {
       `${RED}error:${RESET} ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(2);
-  }
-
-  // Bail early if `fs` isn't actually importable — e.g. someone ran this
-  // in a non-Node environment. `fs-extra` throws a cleaner error than
-  // downstream calls would.
-  if (!fs) {
-    throw new Error('fs-extra failed to load');
   }
 
   await ensureCliBuilt();

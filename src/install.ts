@@ -17,7 +17,7 @@
 //     guard rail that prevents stomping on a user's existing project.
 
 import { execa } from 'execa';
-import fs from 'fs-extra';
+import { rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { PackageManagerName } from './index.ts';
@@ -143,16 +143,16 @@ export async function installDependencies(
   pm: PackageManagerName,
   runner: ProcessRunner = defaultProcessRunner,
 ): Promise<void> {
-  let stat;
+  let targetStat;
   try {
-    stat = await fs.stat(targetDir);
+    targetStat = await stat(targetDir);
   } catch (err) {
     throw new InstallFailedError(
       `Cannot install dependencies — target directory does not exist: ${targetDir}`,
       { cause: err },
     );
   }
-  if (!stat.isDirectory()) {
+  if (!targetStat.isDirectory()) {
     throw new InstallFailedError(
       `Cannot install dependencies — target path is not a directory: ${targetDir}`,
     );
@@ -180,6 +180,6 @@ export async function cleanupLockFiles(
   await Promise.all(
     allLockFiles
       .filter((lockFile) => lockFile !== keep)
-      .map((lockFile) => fs.remove(join(targetDir, lockFile))),
+      .map((lockFile) => rm(join(targetDir, lockFile), { recursive: true, force: true })),
   );
 }
