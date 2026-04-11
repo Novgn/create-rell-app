@@ -2,6 +2,10 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default tseslint.config(
   {
@@ -12,6 +16,7 @@ export default tseslint.config(
       '_bmad/**',
       '_bmad-output/**',
       '.claude/**',
+      '.worktrees/**',
       'templates/**',
       // Scaffolded output left in the repo root during local CLI testing.
       // These are generated projects, not CLI source, so ESLint should skip
@@ -20,6 +25,7 @@ export default tseslint.config(
       'my-app/**',
       'my-saas-app/**',
       'test-project/**',
+      'full-app/**',
     ],
   },
   js.configs.recommended,
@@ -28,6 +34,15 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
+      // Pin tsconfigRootDir so the @typescript-eslint parser can't be
+      // confused by ghost editor buffers or nested tsconfigs from
+      // scaffolded test projects. Without this, opening a file under
+      // e.g. full-app/apps/mobile/ causes the parser to discover two
+      // candidate roots and bail with a "multiple candidate TSConfigRootDirs"
+      // error. See https://tseslint.com/parser-tsconfigrootdir.
+      parserOptions: {
+        tsconfigRootDir: __dirname,
+      },
       globals: {
         process: 'readonly',
         console: 'readonly',
