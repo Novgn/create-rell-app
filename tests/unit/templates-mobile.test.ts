@@ -261,6 +261,20 @@ describe('templates/mobile static file shape (Story 5.2)', () => {
     expect(text).toContain("dialect: 'postgresql'");
   });
 
+  it('lib/env.ts validates public env via Zod (one error for all missing keys)', async () => {
+    const text = await readFile(join(MOBILE_DIR, 'lib', 'env.ts'), 'utf8');
+    expect(text).toContain("import { z } from 'zod'");
+    expect(text).toContain('z.object(');
+    // The exported shape downstream code imports must be preserved.
+    expect(text).toContain('export const env');
+    expect(text).toContain('publishableKey');
+    expect(text).toContain('supabase');
+    // Mobile env.ts is React Native — must NOT import server-only.
+    expect(text).not.toContain("'server-only'");
+    // The old hand-rolled helper must be gone — replaced by the Zod schema.
+    expect(text).not.toContain('function required(');
+  });
+
   it('_env.example contains only mobile vars (EXPO_PUBLIC_ keys)', async () => {
     const text = await readFile(join(MOBILE_DIR, '_env.example'), 'utf8');
     expect(text).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY');
