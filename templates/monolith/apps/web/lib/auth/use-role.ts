@@ -53,8 +53,13 @@ export function useRole(): UseRoleResult {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
+      // Clear the module-level cache so the next sign-in refetches from
+      // scratch. We deliberately do NOT call `setRole(null)` here — the
+      // render logic below already gates on `isSignedIn`, and calling
+      // setState synchronously inside an effect trips
+      // react-hooks/set-state-in-effect. The stale `role` state becomes
+      // unreachable as soon as `isSignedIn` flips to false.
       cachedRole = null;
-      setRole(null);
       return;
     }
     let cancelled = false;

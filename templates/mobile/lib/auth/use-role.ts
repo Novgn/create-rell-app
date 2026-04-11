@@ -34,20 +34,25 @@ type SupabaseClient = ReturnType<typeof useSupabaseClient>;
 function fetchRole(supabase: SupabaseClient, userId: string): Promise<Role> {
   if (cachedRole !== null) return Promise.resolve(cachedRole);
   if (inFlight) return inFlight;
-  inFlight = supabase
-    .from('user_roles')
-    .select('role')
-    .eq('clerk_user_id', userId)
-    .maybeSingle()
-    .then(({ data, error }: { data: { role: Role } | null; error: unknown }) => {
+  // Wrap in an async IIFE so the return type is a real Promise (not the
+  // PromiseLike that Supabase's builder chain produces). PromiseLike lacks
+  // `.finally`, which is why the earlier thenable-chain form failed to
+  // typecheck.
+  inFlight = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('clerk_user_id', userId)
+        .maybeSingle();
       if (error) throw error;
       const next: Role = data?.role ?? 'free';
       cachedRole = next;
       return next;
-    })
-    .finally(() => {
+    } finally {
       inFlight = null;
-    }) as Promise<Role>;
+    }
+  })();
   return inFlight;
 }
 
@@ -59,8 +64,13 @@ export function useRole(): UseRoleResult {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn || userId == null) {
+      // Clear the module-level cache so the next sign-in refetches from
+      // scratch. We deliberately do NOT call `setRoleState(null)` here —
+      // the render logic below already gates on `isSignedIn`, and calling
+      // setState synchronously inside an effect trips
+      // react-hooks/set-state-in-effect. The stale `role` state becomes
+      // unreachable as soon as `isSignedIn` flips to false.
       cachedRole = null;
-      setRoleState(null);
       return;
     }
     let cancelled = false;
