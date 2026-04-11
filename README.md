@@ -1,17 +1,17 @@
-# @novagen/create-rell-app
+# create-rell-app
 
 Scaffold a fully wired **Clerk + Supabase + Drizzle** starter app in one command. Pick a template, choose your package manager, and get a production-ready project with authentication, billing, RBAC, and database — all pre-configured and ready to run.
 
 ## Quick start
 
 ```bash
-npx @novagen/create-rell-app my-project
+npx create-rell-app my-project
 ```
 
 Follow the interactive prompts to select a template and package manager. Or skip prompts entirely with flags:
 
 ```bash
-npx @novagen/create-rell-app my-project --template web --pm pnpm
+npx create-rell-app my-project --template web --pm pnpm
 ```
 
 ## Templates

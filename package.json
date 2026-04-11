@@ -1,5 +1,5 @@
 {
-  "name": "@novagen/create-rell-app",
+  "name": "create-rell-app",
   "version": "0.1.1",
   "description": "Scaffold a fully wired Clerk + Supabase + Drizzle starter app (web, mobile, or full-stack monolith) in one command.",
   "license": "MIT",
