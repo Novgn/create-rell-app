@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 import { getCurrentUserWithRole } from '@/lib/auth/current-user';
+import { rateLimit } from '@/lib/rate-limit';
 
 // GET /api/me/role — returns the currently signed-in user's RBAC role.
 //
@@ -19,6 +20,22 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
   }
 
+  const limit = await rateLimit(`me-role:${userId}`);
+  if (!limit.success) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.max(1, Math.ceil((limit.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
+  }
+
   const current = await getCurrentUserWithRole();
-  return NextResponse.json({ role: current?.role ?? 'free' });
+  return NextResponse.json(
+    { role: current?.role ?? 'free' },
+    { headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' } },
+  );
 }
