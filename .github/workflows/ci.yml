@@ -13,12 +13,16 @@ name: CI
 
 on:
   push:
-    branches: ['**']
-    # Dependabot already triggers the same CI run via its `pull_request`
-    # event (GitHub uses the `pull_request_target` semantics for Dependabot
-    # PRs under the hood). Ignoring the push trigger on `dependabot/**`
-    # branches prevents the double-trigger that burns runner minutes.
-    branches-ignore: ['dependabot/**']
+    # Include every branch except the dependabot-owned ones. Dependabot
+    # already triggers the same CI run via the `pull_request` event below,
+    # so including the push trigger too would fire CI twice per PR. GitHub
+    # Actions rejects using both `branches` and `branches-ignore` on the
+    # same trigger (they're mutually exclusive), so we express the
+    # exclusion with a leading `!` negation pattern inside the `branches`
+    # list instead.
+    branches:
+      - '**'
+      - '!dependabot/**'
   pull_request:
     branches: [main]
 
