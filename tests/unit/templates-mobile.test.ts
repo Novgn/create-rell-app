@@ -18,7 +18,7 @@ const MOBILE_DIR = join(TEMPLATES_DIR, 'mobile');
 const EXPECTED_MOBILE_FILES: ReadonlyArray<string> = [
   // Root configs
   'package.json',
-  'tsconfig.json',
+  '_tsconfig.json',
   '_gitignore',
   '_env.example',
   '_husky/pre-commit',
@@ -121,8 +121,8 @@ describe('templates/mobile static file shape (Story 5.2)', () => {
     expect(parsed.devDependencies['eslint-config-prettier']).toMatch(exact);
   });
 
-  it('tsconfig.json is standalone — does not extend any base config', async () => {
-    const text = await readFile(join(MOBILE_DIR, 'tsconfig.json'), 'utf8');
+  it('_tsconfig.json is standalone — does not extend any base config', async () => {
+    const text = await readFile(join(MOBILE_DIR, '_tsconfig.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       extends?: string;
       compilerOptions: Record<string, unknown>;

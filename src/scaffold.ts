@@ -81,6 +81,13 @@ const SPECIAL_FILENAME_RENAMES: ReadonlyMap<string, string> = new Map([
   ['_npmrc', '.npmrc'],
   ['_env.example', '.env.example'],
   ['_husky', '.husky'],
+  // `tsconfig.json` files in templates are shipped under `_tsconfig.json`
+  // so the IDE's TypeScript server doesn't auto-discover them as standalone
+  // projects when a contributor opens a template file. Template node_modules
+  // are never installed, so a discovered project would produce spurious
+  // "cannot find module '@clerk/nextjs/server'" errors for every import.
+  // The scaffold engine renames them back to `tsconfig.json` on write.
+  ['_tsconfig.json', 'tsconfig.json'],
 ]);
 
 export interface ScaffoldOptions {

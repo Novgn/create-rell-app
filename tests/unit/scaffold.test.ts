@@ -147,6 +147,10 @@ describe('renameSpecialFiles', () => {
     expect(renameSpecialFiles('_husky')).toBe('.husky');
   });
 
+  it('renames _tsconfig.json to tsconfig.json (hides template TS projects from the IDE)', () => {
+    expect(renameSpecialFiles('_tsconfig.json')).toBe('tsconfig.json');
+  });
+
   it('passes regular filenames through unchanged', () => {
     expect(renameSpecialFiles('package.json')).toBe('package.json');
   });

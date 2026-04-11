@@ -18,7 +18,7 @@ const WEB_DIR = join(TEMPLATES_DIR, 'web');
 const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   // Root configs
   'package.json',
-  'tsconfig.json',
+  '_tsconfig.json',
   '_gitignore',
   '_env.example',
   '_husky/pre-commit',
@@ -147,8 +147,8 @@ describe('templates/web static file shape (Story 5.1)', () => {
     expect(parsed.devDependencies['tailwindcss']).toMatch(exact);
   });
 
-  it('tsconfig.json is standalone — does not extend any base config', async () => {
-    const text = await readFile(join(WEB_DIR, 'tsconfig.json'), 'utf8');
+  it('_tsconfig.json is standalone — does not extend any base config', async () => {
+    const text = await readFile(join(WEB_DIR, '_tsconfig.json'), 'utf8');
     const parsed = JSON.parse(text) as {
       extends?: string;
       compilerOptions: Record<string, unknown>;

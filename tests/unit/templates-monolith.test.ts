@@ -28,7 +28,7 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'README.md',
   'apps/web/package.json',
   'apps/web/next.config.ts',
-  'apps/web/tsconfig.json',
+  'apps/web/_tsconfig.json',
   'apps/web/next-env.d.ts',
   'apps/web/app/layout.tsx',
   'apps/web/app/page.tsx',
@@ -47,7 +47,7 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/mobile/package.json',
   'apps/mobile/app.json',
   'apps/mobile/babel.config.js',
-  'apps/mobile/tsconfig.json',
+  'apps/mobile/_tsconfig.json',
   'apps/mobile/app/_layout.tsx',
   'apps/mobile/lib/env.ts',
   'apps/mobile/lib/token-cache.ts',
@@ -58,7 +58,7 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/mobile/app/(tabs)/_layout.tsx',
   'apps/mobile/app/(tabs)/index.tsx',
   'packages/shared/package.json',
-  'packages/shared/tsconfig.json',
+  'packages/shared/_tsconfig.json',
   'packages/shared/index.ts',
   'packages/shared/drizzle.config.ts',
   'packages/shared/db/README.md',
@@ -1340,8 +1340,8 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('/// <reference types="nativewind/types" />');
   });
 
-  it('mobile tsconfig.json includes nativewind-env.d.ts', async () => {
-    const text = await readFile(join(MOBILE_DIR, 'tsconfig.json'), 'utf8');
+  it('mobile _tsconfig.json includes nativewind-env.d.ts', async () => {
+    const text = await readFile(join(MOBILE_DIR, '_tsconfig.json'), 'utf8');
     expect(text).toContain('nativewind-env.d.ts');
   });
 
