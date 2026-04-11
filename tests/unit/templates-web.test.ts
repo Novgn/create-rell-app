@@ -36,6 +36,7 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   'db/client.ts',
   'db/migrations/0000_initial.sql',
   'db/migrations/0001_rbac_helpers.sql',
+  'db/migrations/0002_webhook_deliveries.sql',
   // lib/
   'lib/env.ts',
   'lib/env-server.ts',
@@ -251,6 +252,77 @@ describe('templates/web static file shape (Story 5.1)', () => {
     const queriesText = await readFile(join(WEB_DIR, 'db', 'queries.ts'), 'utf8');
     expect(queriesText).toContain('getUserRoleByClerkId');
     expect(queriesText).toContain('setUserRole');
+  });
+
+  // === Webhook replay safety (svix-id dedupe + user.created insert-only) ===
+
+  it('db/schema.ts exports webhookDeliveries table for svix replay dedupe', async () => {
+    const text = await readFile(join(WEB_DIR, 'db', 'schema.ts'), 'utf8');
+    expect(text).toContain('export const webhookDeliveries');
+    expect(text).toContain("'webhook_deliveries'");
+    expect(text).toContain("'svix_id'");
+    expect(text).toContain("'event_type'");
+    expect(text).toContain("'processed_at'");
+    expect(text).toContain('export type WebhookDelivery');
+  });
+
+  it('db/queries.ts exports insertDefaultUserRole and markWebhookSeen', async () => {
+    const text = await readFile(join(WEB_DIR, 'db', 'queries.ts'), 'utf8');
+    expect(text).toContain('export async function insertDefaultUserRole');
+    expect(text).toContain('export async function markWebhookSeen');
+    expect(text).toContain('onConflictDoNothing');
+  });
+
+  it('db/migrations/0002_webhook_deliveries.sql creates the dedupe table with RLS', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'db', 'migrations', '0002_webhook_deliveries.sql'),
+      'utf8',
+    );
+    expect(text).toContain('CREATE TABLE IF NOT EXISTS "webhook_deliveries"');
+    expect(text).toContain('"svix_id" text PRIMARY KEY');
+    expect(text).toContain('ENABLE ROW LEVEL SECURITY');
+  });
+
+  it('event-handler.ts user.created case uses insertDefaultUserRole (not setUserRole)', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    // Extract the user.created case block so we don't match setUserRole
+    // references from the subscription.* cases.
+    const match = text.match(/case 'user\.created':[\s\S]*?(?=case '|default:)/);
+    expect(match).not.toBeNull();
+    const block = match?.[0] ?? '';
+    expect(block).not.toContain('setUserRole');
+    expect(block).toContain('insertDefaultUserRole');
+    expect(block).toContain("role: 'free'");
+  });
+
+  it('event-handler.ts imports insertDefaultUserRole and markWebhookSeen from @/db/queries', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    expect(text).toContain('insertDefaultUserRole');
+    expect(text).toContain('markWebhookSeen');
+    expect(text).toContain("from '@/db/queries'");
+  });
+
+  it('event-handler.ts accepts an optional svixId and short-circuits replays', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'event-handler.ts'),
+      'utf8',
+    );
+    expect(text).toMatch(/handleBillingEvent\(\s*[\s\S]*event:[\s\S]*svixId\?:\s*string/);
+    expect(text).toContain('markWebhookSeen(db, svixId, event.type)');
+  });
+
+  it('clerk-billing route.ts forwards svixId into handleBillingEvent', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'app', 'api', 'webhooks', 'clerk-billing', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain('handleBillingEvent(verifiedEvent, svixId)');
   });
 
   it('db/migrations/0000_initial.sql preserves RLS policies + auth.jwt sub', async () => {

@@ -37,6 +37,7 @@ const EXPECTED_MOBILE_FILES: ReadonlyArray<string> = [
   'db/client.ts',
   'db/migrations/0000_initial.sql',
   'db/migrations/0001_rbac_helpers.sql',
+  'db/migrations/0002_webhook_deliveries.sql',
   // lib/
   'lib/env.ts',
   'lib/token-cache.ts',
@@ -216,6 +217,35 @@ describe('templates/mobile static file shape (Story 5.2)', () => {
     expect(text).toContain("'super_admin'");
     expect(text).toContain("'paid'");
     expect(text).toContain("'free'");
+  });
+
+  // === Webhook replay safety: schema + queries stay in lockstep with web ===
+
+  it('db/schema.ts exports webhookDeliveries for cross-template consistency', async () => {
+    // Mobile has no webhook handler, but the schema must stay in lockstep
+    // with the web + monolith templates so drizzle-kit migrations generate
+    // byte-identical output — see tests/unit/templates-consistency.test.ts.
+    const text = await readFile(join(MOBILE_DIR, 'db', 'schema.ts'), 'utf8');
+    expect(text).toContain('export const webhookDeliveries');
+    expect(text).toContain("'webhook_deliveries'");
+    expect(text).toContain("'svix_id'");
+  });
+
+  it('db/queries.ts exports insertDefaultUserRole and markWebhookSeen for consistency', async () => {
+    const text = await readFile(join(MOBILE_DIR, 'db', 'queries.ts'), 'utf8');
+    expect(text).toContain('export async function insertDefaultUserRole');
+    expect(text).toContain('export async function markWebhookSeen');
+    expect(text).toContain('onConflictDoNothing');
+  });
+
+  it('db/migrations/0002_webhook_deliveries.sql mirrors the web + monolith migration', async () => {
+    const text = await readFile(
+      join(MOBILE_DIR, 'db', 'migrations', '0002_webhook_deliveries.sql'),
+      'utf8',
+    );
+    expect(text).toContain('CREATE TABLE IF NOT EXISTS "webhook_deliveries"');
+    expect(text).toContain('"svix_id" text PRIMARY KEY');
+    expect(text).toContain('ENABLE ROW LEVEL SECURITY');
   });
 
   it('db/client.ts warns that it is Node-only (dev tooling)', async () => {

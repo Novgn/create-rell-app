@@ -150,6 +150,49 @@ describe('cross-template DB naming consistency', () => {
     expect(web).toBe(mono);
     expect(mobile).toBe(mono);
   });
+
+  it('0002_webhook_deliveries.sql is byte-identical across all three templates', async () => {
+    const paths = {
+      monolith: join(MONOLITH_SHARED_DIR, 'db', 'migrations', '0002_webhook_deliveries.sql'),
+      web: join(WEB_DIR, 'db', 'migrations', '0002_webhook_deliveries.sql'),
+      mobile: join(MOBILE_DIR, 'db', 'migrations', '0002_webhook_deliveries.sql'),
+    };
+    const [mono, web, mobile] = await Promise.all([
+      readFile(paths.monolith, 'utf8'),
+      readFile(paths.web, 'utf8'),
+      readFile(paths.mobile, 'utf8'),
+    ]);
+    expect(web).toBe(mono);
+    expect(mobile).toBe(mono);
+  });
+
+  it.each(TEMPLATES)(
+    'schema.ts in %s template exports the webhookDeliveries table',
+    async (tpl) => {
+      const text = await readFile(SCHEMA_PATHS[tpl], 'utf8');
+      expect(text).toContain('export const webhookDeliveries');
+      expect(text).toContain("'webhook_deliveries'");
+      expect(text).toContain("'svix_id'");
+      expect(text).toContain("'event_type'");
+      expect(text).toContain("'processed_at'");
+    },
+  );
+
+  it.each(TEMPLATES)(
+    'queries.ts in %s template exports the replay-safe helpers',
+    async (tpl) => {
+      const queriesPath =
+        tpl === 'monolith'
+          ? join(MONOLITH_SHARED_DIR, 'db', 'queries.ts')
+          : tpl === 'web'
+            ? join(WEB_DIR, 'db', 'queries.ts')
+            : join(MOBILE_DIR, 'db', 'queries.ts');
+      const text = await readFile(queriesPath, 'utf8');
+      expect(text).toContain('export async function insertDefaultUserRole');
+      expect(text).toContain('export async function markWebhookSeen');
+      expect(text).toContain('onConflictDoNothing');
+    },
+  );
 });
 
 // ===== Env var naming =====

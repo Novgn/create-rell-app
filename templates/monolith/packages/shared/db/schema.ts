@@ -54,3 +54,18 @@ export type UserRole = typeof userRoles.$inferSelect;
  * constraints.
  */
 export type NewUserRole = typeof userRoles.$inferInsert;
+
+/**
+ * `webhook_deliveries` records every Clerk/svix webhook we've successfully
+ * processed so retries within svix's replay window don't re-execute the
+ * handler. The primary key is the `svix-id` header — svix guarantees it's
+ * unique per delivery attempt, so an `INSERT ... ON CONFLICT DO NOTHING`
+ * against it is a safe idempotency check.
+ */
+export const webhookDeliveries = pgTable('webhook_deliveries', {
+  svixId: text('svix_id').primaryKey(),
+  eventType: text('event_type').notNull(),
+  processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;

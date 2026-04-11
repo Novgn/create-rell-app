@@ -9,7 +9,8 @@ import 'server-only';
 // object and assert which role it would apply.
 //
 // Supported event types (extend the switch as Clerk Billing grows):
-//   - user.created                  → upsert a 'free' row
+//   - user.created                  → insert a 'free' row iff absent
+//                                     (replay-safe — won't demote upgraded users)
 //   - subscription.created          → upsert role derived from plan
 //   - subscription.updated          → upsert role derived from plan
 //   - subscription.cancelled        → downgrade to 'free'
@@ -18,7 +19,13 @@ import 'server-only';
 // Unknown event types return `{ processed: false }` — the route handler
 // translates that into a `200 OK` so Clerk doesn't retry forever.
 
-import { getDb, setUserRole, type Role } from '@{{projectNameKebab}}/shared';
+import {
+  getDb,
+  insertDefaultUserRole,
+  markWebhookSeen,
+  setUserRole,
+  type Role,
+} from '@{{projectNameKebab}}/shared';
 
 import { planToRole } from './plan-to-role';
 
@@ -49,15 +56,34 @@ export interface BillingEventResult {
 /**
  * Handle a verified Clerk Billing webhook event. Returns `processed: false`
  * for unknown event types (the route handler turns that into a 200 OK).
+ *
+ * The optional `svixId` argument enables replay deduplication. When provided,
+ * the handler records the svix-id in `webhook_deliveries` and short-circuits
+ * any subsequent delivery with the same id. The caller (route handler) should
+ * always pass this in production; tests may omit it for unit isolation.
  */
-export async function handleBillingEvent(event: ClerkBillingEvent): Promise<BillingEventResult> {
+export async function handleBillingEvent(
+  event: ClerkBillingEvent,
+  svixId?: string,
+): Promise<BillingEventResult> {
   const db = getDb();
+
+  // svix retries every webhook on transient failure (network blip, 5xx).
+  // Idempotency on the svix-id keeps us from re-applying side effects on
+  // the second delivery — the row insert is the dedupe.
+  if (svixId) {
+    const fresh = await markWebhookSeen(db, svixId, event.type);
+    if (!fresh) return { processed: false };
+  }
 
   switch (event.type) {
     case 'user.created': {
       const clerkUserId = event.data.id;
       if (!clerkUserId) return { processed: false };
-      await setUserRole(db, clerkUserId, 'free');
+      // IMPORTANT: insert-only (not upsert). A svix replay of user.created
+      // arriving AFTER subscription.created has already promoted the user
+      // must NOT downgrade them back to 'free'.
+      await insertDefaultUserRole(db, clerkUserId);
       return { processed: true, clerkUserId, role: 'free' };
     }
 

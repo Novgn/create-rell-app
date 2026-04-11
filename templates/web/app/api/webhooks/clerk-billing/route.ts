@@ -60,9 +60,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const result = await handleBillingEvent(verifiedEvent);
-    // Unknown event types fall through with processed: false → 200 OK so
-    // svix doesn't retry.
+    // Pass svixId so handleBillingEvent can dedupe replays via the
+    // webhook_deliveries table — see lib/billing/event-handler.ts.
+    const result = await handleBillingEvent(verifiedEvent, svixId);
+    // Unknown event types AND replays both fall through with
+    // processed: false → 200 OK so svix doesn't retry.
     return NextResponse.json({ ok: true, processed: result.processed });
   } catch (err) {
     console.error('[clerk-billing webhook] handler error:', err);
