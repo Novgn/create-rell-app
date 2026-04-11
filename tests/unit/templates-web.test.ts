@@ -49,6 +49,8 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   'lib/billing/plan-to-role.ts',
   'lib/billing/event-handler.ts',
   'lib/validation/profile-form.ts',
+  'lib/rate-limit.ts',
+  'lib/flags.ts',
   // app/
   'app/layout.tsx',
   'app/page.tsx',
@@ -455,6 +457,67 @@ describe('templates/web static file shape (Story 5.1)', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+// === Security hardening batch — rate limiting, flags, CSP, error redaction ===
+
+describe('templates/web security hardening', () => {
+  it('lib/rate-limit.ts exists and exports rateLimit', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'rate-limit.ts'), 'utf8');
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain('export async function rateLimit');
+    expect(text).toContain('RateLimitResult');
+  });
+
+  it('lib/flags.ts exists and exports a flag() helper', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'flags.ts'), 'utf8');
+    expect(text).toContain('export function flag');
+    expect(text).toContain('NEXT_PUBLIC_FLAG_');
+    expect(text).toContain('FLAG_');
+  });
+
+  it('app/api/me/role/route.ts imports rateLimit and sets Cache-Control on success', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'app', 'api', 'me', 'role', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from '@/lib/rate-limit'");
+    expect(text).toContain('rateLimit(');
+    expect(text).toContain('Retry-After');
+    expect(text).toContain('status: 429');
+    expect(text).toContain('Cache-Control');
+    expect(text).toContain('private, max-age=30, stale-while-revalidate=60');
+  });
+
+  it('next.config.ts ships core security headers including Strict-Transport-Security', async () => {
+    const text = await readFile(join(WEB_DIR, 'next.config.ts'), 'utf8');
+    expect(text).toMatch(/async\s+headers\s*\(\s*\)/);
+    expect(text).toContain('Strict-Transport-Security');
+    expect(text).toContain('X-Frame-Options');
+    expect(text).toContain('X-Content-Type-Options');
+    expect(text).toContain('Referrer-Policy');
+    expect(text).toContain('Permissions-Policy');
+    // Clerk CSP doc reference for users who want to enable CSP themselves.
+    expect(text).toContain('clerk.com/docs/security/clerk-csp');
+  });
+
+  it('app/error.tsx redacts error.message in production', async () => {
+    const text = await readFile(join(WEB_DIR, 'app', 'error.tsx'), 'utf8');
+    expect(text).toContain("process.env.NODE_ENV === 'production'");
+    // The dev branch still exposes error.message.
+    expect(text).toContain('error.message');
+  });
+
+  it('lib/billing/plan-to-role.ts sanitizes the unknown-plan log output', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'plan-to-role.ts'),
+      'utf8',
+    );
+    expect(text).toContain('safeKey');
+    expect(text).toContain(".slice(0, 40)");
+    // The raw planKey must not be passed directly into console.warn anymore.
+    expect(text).not.toMatch(/console\.warn\([^)]*planKey\s*\)/);
   });
 });
 

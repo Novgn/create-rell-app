@@ -69,6 +69,8 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/web/lib/env-server.ts',
   'apps/web/lib/billing/plan-to-role.ts',
   'apps/web/lib/billing/event-handler.ts',
+  'apps/web/lib/rate-limit.ts',
+  'apps/web/lib/flags.ts',
   'apps/web/app/api/webhooks/clerk-billing/route.ts',
   'apps/web/lib/auth/roles.ts',
   'apps/web/lib/auth/use-role.ts',
@@ -1690,6 +1692,69 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+// === Security hardening batch — rate limiting, flags, CSP, error redaction ===
+
+describe('templates/monolith security hardening', () => {
+  it('apps/web/lib/rate-limit.ts exists and exports rateLimit', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'rate-limit.ts'), 'utf8');
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain('export async function rateLimit');
+    expect(text).toContain('RateLimitResult');
+  });
+
+  it('apps/web/lib/flags.ts exists and exports a flag() helper', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'flags.ts'), 'utf8');
+    expect(text).toContain('export function flag');
+    expect(text).toContain('NEXT_PUBLIC_FLAG_');
+    expect(text).toContain('FLAG_');
+  });
+
+  it('apps/web/app/api/me/role/route.ts imports rateLimit and sets Cache-Control on success', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'app', 'api', 'me', 'role', 'route.ts'),
+      'utf8',
+    );
+    expect(text).toContain("from '@/lib/rate-limit'");
+    expect(text).toContain('rateLimit(');
+    expect(text).toContain('Retry-After');
+    expect(text).toContain('status: 429');
+    expect(text).toContain('Cache-Control');
+    expect(text).toContain('private, max-age=30, stale-while-revalidate=60');
+  });
+
+  it('apps/web/next.config.ts ships core security headers including Strict-Transport-Security', async () => {
+    const text = await readFile(join(WEB_DIR, 'next.config.ts'), 'utf8');
+    expect(text).toMatch(/async\s+headers\s*\(\s*\)/);
+    expect(text).toContain('Strict-Transport-Security');
+    expect(text).toContain('X-Frame-Options');
+    expect(text).toContain('X-Content-Type-Options');
+    expect(text).toContain('Referrer-Policy');
+    expect(text).toContain('Permissions-Policy');
+    // Clerk CSP doc reference for users who want to enable CSP themselves.
+    expect(text).toContain('clerk.com/docs/security/clerk-csp');
+    // transpilePackages for the shared workspace must still be present.
+    expect(text).toContain('transpilePackages');
+  });
+
+  it('apps/web/app/error.tsx redacts error.message in production', async () => {
+    const text = await readFile(join(WEB_DIR, 'app', 'error.tsx'), 'utf8');
+    expect(text).toContain("process.env.NODE_ENV === 'production'");
+    // The dev branch still exposes error.message.
+    expect(text).toContain('error.message');
+  });
+
+  it('apps/web/lib/billing/plan-to-role.ts sanitizes the unknown-plan log output', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'lib', 'billing', 'plan-to-role.ts'),
+      'utf8',
+    );
+    expect(text).toContain('safeKey');
+    expect(text).toContain(".slice(0, 40)");
+    // The raw planKey must not be passed directly into console.warn anymore.
+    expect(text).not.toMatch(/console\.warn\([^)]*planKey\s*\)/);
   });
 });
 
