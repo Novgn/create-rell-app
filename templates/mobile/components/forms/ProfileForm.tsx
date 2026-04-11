@@ -33,9 +33,12 @@ export function ProfileForm() {
   });
 
   function onSubmit(values: ProfileFormValues) {
-    // Replace this with a real Supabase insert or API call. The `values`
-    // argument is already Zod-validated.
-    console.log('profile form submit', values);
+    // TODO: wire this to a server action or API route. The `values` object
+    // has already been validated and coerced by Zod — it is safe to pass
+    // directly to your backend without re-validation on the client side.
+    if (__DEV__) {
+      console.warn('[ProfileForm] onSubmit not wired — payload:', values);
+    }
   }
 
   return (
