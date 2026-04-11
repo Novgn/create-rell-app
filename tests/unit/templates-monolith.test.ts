@@ -314,6 +314,29 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
   });
 
+  it('monolith web/lib/env.ts validates public env via Zod (one error for all missing keys)', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'env.ts'), 'utf8');
+    expect(text).toContain("import { z } from 'zod'");
+    expect(text).toContain('z.object(');
+    // Preserves the nested shape downstream code imports.
+    expect(text).toContain('export const env');
+    expect(text).toContain('publishableKey');
+    expect(text).toContain('supabase');
+    expect(text).not.toContain('requiredPublic');
+  });
+
+  it('monolith web/lib/env-server.ts uses server-only guard AND a Zod schema', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'env-server.ts'), 'utf8');
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain("import { z } from 'zod'");
+    expect(text).toContain('z.object(');
+    expect(text).toContain('export const serverEnv');
+    expect(text).toContain('secretKey');
+    expect(text).toContain('billingWebhookSigningSecret');
+    expect(text).toContain('database');
+    expect(text).not.toContain('requiredServer');
+  });
+
   // === Story 2.3 — middleware + sign-in/sign-up + protected routes ===
 
   it('web middleware uses clerkMiddleware and createRouteMatcher from @clerk/nextjs/server', async () => {

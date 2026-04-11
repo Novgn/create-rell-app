@@ -270,6 +270,32 @@ describe('templates/web static file shape (Story 5.1)', () => {
     expect(text).toContain("dialect: 'postgresql'");
   });
 
+  it('lib/env.ts validates public env via Zod (one error for all missing keys)', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'env.ts'), 'utf8');
+    expect(text).toContain("import { z } from 'zod'");
+    expect(text).toContain('z.object(');
+    // The exported shape downstream code imports must be preserved.
+    expect(text).toContain('export const env');
+    expect(text).toContain('publishableKey');
+    expect(text).toContain('supabase');
+    // The old hand-rolled helper must be gone — replaced by the Zod schema.
+    expect(text).not.toContain('requiredPublic');
+  });
+
+  it('lib/env-server.ts uses server-only guard AND a Zod schema', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'env-server.ts'), 'utf8');
+    expect(text).toContain("import 'server-only'");
+    expect(text).toContain("import { z } from 'zod'");
+    expect(text).toContain('z.object(');
+    expect(text).toContain('export const serverEnv');
+    // Preserves the nested shape: serverEnv.clerk.secretKey etc.
+    expect(text).toContain('secretKey');
+    expect(text).toContain('billingWebhookSigningSecret');
+    expect(text).toContain('database');
+    // Old hand-rolled helper must be gone.
+    expect(text).not.toContain('requiredServer');
+  });
+
   it('_env.example contains only web vars (no EXPO_PUBLIC_ keys)', async () => {
     const text = await readFile(join(WEB_DIR, '_env.example'), 'utf8');
     expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
