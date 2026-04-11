@@ -32,6 +32,7 @@ const EXPECTED_MOBILE_FILES: ReadonlyArray<string> = [
   'eslint.config.mjs',
   'drizzle.config.ts',
   // db/
+  'db/README.md',
   'db/schema.ts',
   'db/queries.ts',
   'db/client.ts',
