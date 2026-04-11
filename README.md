@@ -1,17 +1,17 @@
-# create-rell-app
+# @novagen/create-rell-app
 
 Scaffold a fully wired **Clerk + Supabase + Drizzle** starter app in one command. Pick a template, choose your package manager, and get a production-ready project with authentication, billing, RBAC, and database — all pre-configured and ready to run.
 
 ## Quick start
 
 ```bash
-npx create-rell-app my-project
+npx @novagen/create-rell-app my-project
 ```
 
 Follow the interactive prompts to select a template and package manager. Or skip prompts entirely with flags:
 
 ```bash
-npx create-rell-app my-project --template web --pm pnpm
+npx @novagen/create-rell-app my-project --template web --pm pnpm
 ```
 
 ## Templates
@@ -32,7 +32,7 @@ npx create-rell-app my-project --template web --pm pnpm
 
 **Solo Mobile** — standalone Expo app. Best for mobile-only products.
 
-**Full-Stack Monolith** — npm workspaces monorepo with `web/`, `mobile/`, and `shared/` directories. The web and mobile portions mirror the solo templates. The shared directory holds the Drizzle schema and TypeScript types used by both.
+**Full-Stack Monolith** — npm workspaces monorepo with `apps/web/`, `apps/mobile/`, and `packages/shared/` directories. The web and mobile portions mirror the solo templates. The shared package holds the Drizzle schema and TypeScript types used by both.
 
 ## What you get
 
