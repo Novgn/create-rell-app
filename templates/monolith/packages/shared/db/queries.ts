@@ -9,7 +9,13 @@
 import { eq } from 'drizzle-orm';
 
 import type { DbClient } from './client';
-import { type NewUserRole, type Role, type UserRole, userRoles } from './schema';
+import {
+  type NewUserRole,
+  type Role,
+  type UserRole,
+  userRoles,
+  webhookDeliveries,
+} from './schema';
 
 /**
  * Fetch a user_roles row by Clerk user ID. Returns `null` if the user has
@@ -53,4 +59,38 @@ export async function setUserRole(
     throw new Error(`setUserRole: upsert returned no rows for clerkUserId=${clerkUserId}`);
   }
   return result;
+}
+
+/**
+ * Insert a 'free' user_roles row only if the user does not already have
+ * one. Idempotent — used by the `user.created` webhook handler so that
+ * a replay after the user has upgraded does not demote them back to free.
+ */
+export async function insertDefaultUserRole(
+  db: DbClient,
+  clerkUserId: string,
+): Promise<void> {
+  await db
+    .insert(userRoles)
+    .values({ clerkUserId, role: 'free' })
+    .onConflictDoNothing({ target: userRoles.clerkUserId });
+}
+
+/**
+ * Attempt to record a webhook delivery. Returns true if this is the
+ * first time we've seen this svix-id, false if it's a replay that the
+ * caller should ignore. Paired with ON CONFLICT DO NOTHING so concurrent
+ * requests stay safe.
+ */
+export async function markWebhookSeen(
+  db: DbClient,
+  svixId: string,
+  eventType: string,
+): Promise<boolean> {
+  const rows = await db
+    .insert(webhookDeliveries)
+    .values({ svixId, eventType })
+    .onConflictDoNothing({ target: webhookDeliveries.svixId })
+    .returning();
+  return rows.length > 0;
 }
