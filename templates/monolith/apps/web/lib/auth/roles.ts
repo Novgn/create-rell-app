@@ -22,6 +22,7 @@ import 'server-only';
 // auth gating; these helpers provide role gating; RLS provides the
 // ultimate safety net.
 
+import { cache } from 'react';
 import { auth } from '@clerk/nextjs/server';
 import { getDb, getUserRoleByClerkId, type Role } from '@{{projectNameKebab}}/shared';
 
@@ -31,38 +32,48 @@ import { getDb, getUserRoleByClerkId, type Role } from '@{{projectNameKebab}}/sh
  * in API routes that have already resolved the caller.
  *
  * Users with no row in `user_roles` are treated as 'free'.
+ *
+ * Wrapped in React's cache() so duplicate calls within a single render dedupe.
  */
-export async function hasRole(clerkUserId: string, role: Role): Promise<boolean> {
-  const row = await getUserRoleByClerkId(getDb(), clerkUserId);
-  const effective = row?.role ?? 'free';
-  return effective === role;
-}
+export const hasRole = cache(
+  async (clerkUserId: string, role: Role): Promise<boolean> => {
+    const row = await getUserRoleByClerkId(getDb(), clerkUserId);
+    const effective = row?.role ?? 'free';
+    return effective === role;
+  },
+);
 
 /**
  * Check whether the currently-signed-in user has the given role. Calls
  * `auth()` internally. Returns false if no user is signed in.
+ *
+ * Wrapped in React's cache() so duplicate calls within a single render dedupe.
  */
-export async function currentUserHasRole(role: Role): Promise<boolean> {
+export const currentUserHasRole = cache(async (role: Role): Promise<boolean> => {
   const { userId } = await auth();
   if (!userId) return false;
   return hasRole(userId, role);
-}
+});
 
 /**
  * Is the given user a super_admin? Helper for the common god-mode check.
+ *
+ * Wrapped in React's cache() so duplicate calls within a single render dedupe.
  */
-export async function isAdmin(clerkUserId: string): Promise<boolean> {
+export const isAdmin = cache(async (clerkUserId: string): Promise<boolean> => {
   return hasRole(clerkUserId, 'super_admin');
-}
+});
 
 /**
  * Does the given user have paid access? Returns true for both the 'paid'
  * tier and 'super_admin' (admins implicitly have paid access — no need
  * to dual-assign). Use this for gating paid features; use `isAdmin` for
  * gating admin-only features.
+ *
+ * Wrapped in React's cache() so duplicate calls within a single render dedupe.
  */
-export async function isPaid(clerkUserId: string): Promise<boolean> {
+export const isPaid = cache(async (clerkUserId: string): Promise<boolean> => {
   const row = await getUserRoleByClerkId(getDb(), clerkUserId);
   const effective = row?.role ?? 'free';
   return effective === 'paid' || effective === 'super_admin';
-}
+});

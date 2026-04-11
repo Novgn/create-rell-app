@@ -22,36 +22,55 @@ export interface UseRoleResult {
   isLoading: boolean;
 }
 
+// Module-level cache so concurrent <RoleGate> mounts share a single fetch.
+// Cleared on sign-out by Clerk's auth state transition in the effect below.
+let cachedRole: Role | null = null;
+let inFlight: Promise<Role> | null = null;
+
+async function fetchRole(): Promise<Role> {
+  if (cachedRole !== null) return cachedRole;
+  if (inFlight) return inFlight;
+  inFlight = fetch('/api/me/role')
+    .then((res) => {
+      if (!res.ok) throw new Error(`/api/me/role returned ${res.status}`);
+      return res.json() as Promise<{ role: Role }>;
+    })
+    .then((data) => {
+      cachedRole = data.role;
+      return data.role;
+    })
+    .finally(() => {
+      inFlight = null;
+    });
+  return inFlight;
+}
+
 export function useRole(): UseRoleResult {
   const { isSignedIn, isLoaded } = useAuth();
-  const [fetchedRole, setFetchedRole] = useState<Role | null>(null);
-
-  const shouldFetch = isLoaded === true && isSignedIn === true;
+  const [role, setRole] = useState<Role | null>(cachedRole);
 
   useEffect(() => {
-    if (!shouldFetch) return;
-
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      cachedRole = null;
+      setRole(null);
+      return;
+    }
     let cancelled = false;
-
-    fetch('/api/me/role')
-      .then((res) => {
-        if (!res.ok) throw new Error(`/api/me/role returned ${res.status}`);
-        return res.json() as Promise<{ role: Role }>;
-      })
-      .then((data) => {
-        if (!cancelled) setFetchedRole(data.role);
+    fetchRole()
+      .then((r) => {
+        if (!cancelled) setRole(r);
       })
       .catch((err) => {
         console.error('[useRole] failed to fetch role:', err);
-        if (!cancelled) setFetchedRole('free');
+        if (!cancelled) setRole('free');
       });
-
     return () => {
       cancelled = true;
     };
-  }, [shouldFetch]);
+  }, [isLoaded, isSignedIn]);
 
   if (!isLoaded) return { role: null, isLoading: true };
   if (!isSignedIn) return { role: null, isLoading: false };
-  return { role: fetchedRole, isLoading: fetchedRole === null };
+  return { role, isLoading: role === null };
 }

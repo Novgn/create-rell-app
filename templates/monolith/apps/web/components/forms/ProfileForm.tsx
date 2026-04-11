@@ -36,10 +36,12 @@ export function ProfileForm() {
   });
 
   function onSubmit(values: ProfileFormValues) {
-    // Replace this with a real API call or Server Action. The `values`
-    // argument is guaranteed to match the schema — Zod has already parsed
-    // and coerced it for you.
-    console.log('profile form submit', values);
+    // TODO: wire this to a server action or API route. The `values` object
+    // has already been validated and coerced by Zod — it is safe to pass
+    // directly to your backend without re-validation on the client side.
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[ProfileForm] onSubmit not wired — payload:', values);
+    }
   }
 
   return (

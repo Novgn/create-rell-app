@@ -216,6 +216,49 @@ describe('templates/web static file shape (Story 5.1)', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('current-user + roles helpers wrap their exports in React cache() for per-render dedupe', async () => {
+    const currentUser = await readFile(
+      join(WEB_DIR, 'lib', 'auth', 'current-user.ts'),
+      'utf8',
+    );
+    const roles = await readFile(join(WEB_DIR, 'lib', 'auth', 'roles.ts'), 'utf8');
+
+    // Both files must pull React's cache() helper and actually invoke it.
+    // Without this, calling e.g. getCurrentUserWithRole() in a layout and
+    // again in the page it wraps would hit the DB twice per render.
+    expect(currentUser).toContain("import { cache } from 'react'");
+    expect(currentUser).toContain('cache(');
+    expect(currentUser).toContain('getCurrentUserWithRole = cache(');
+
+    expect(roles).toContain("import { cache } from 'react'");
+    expect(roles).toContain('cache(');
+    expect(roles).toContain('hasRole = cache(');
+    expect(roles).toContain('currentUserHasRole = cache(');
+    expect(roles).toContain('isAdmin = cache(');
+    expect(roles).toContain('isPaid = cache(');
+  });
+
+  it('use-role client hook uses a module-level in-flight cache to avoid a refetch storm', async () => {
+    const text = await readFile(join(WEB_DIR, 'lib', 'auth', 'use-role.ts'), 'utf8');
+    // Shared module-level memo pattern (instead of per-component fetch).
+    expect(text).toContain('let cachedRole');
+    expect(text).toContain('let inFlight');
+    expect(text).toContain('async function fetchRole');
+    // The fetch must still hit the same endpoint.
+    expect(text).toContain("'/api/me/role'");
+  });
+
+  it('ProfileForm does not ship a raw console.log — uses a dev-only warn instead', async () => {
+    const text = await readFile(
+      join(WEB_DIR, 'components', 'forms', 'ProfileForm.tsx'),
+      'utf8',
+    );
+    expect(text).not.toMatch(/console\.log\s*\(/);
+    expect(text).toContain("process.env.NODE_ENV !== 'production'");
+    expect(text).toContain("console.warn('[ProfileForm] onSubmit not wired");
+    expect(text).toContain('TODO');
+  });
+
   it('current-user, roles, use-role, RoleGate all import from local @/db paths', async () => {
     const files = [
       join(WEB_DIR, 'lib', 'auth', 'current-user.ts'),
