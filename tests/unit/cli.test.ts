@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildProgram, runCli } from '../../src/index.ts';
+import type { GitRunner } from '../../src/index.ts';
 import type { PromptDriver, ResolvedInputs } from '../../src/prompts.ts';
 import type { ScaffoldResult } from '../../src/scaffold.ts';
 import type { ProcessRunner } from '../../src/install.ts';
 import { InstallFailedError } from '../../src/install.ts';
+
+/** No-op git runner used to keep unit tests off the real git binary. */
+const noopGitRunner: GitRunner = () => Promise.resolve();
 
 describe('buildProgram', () => {
   it('parses project name, --template, and --pm flags', () => {
@@ -90,6 +94,47 @@ describe('buildProgram', () => {
     // `true` or `undefined` here since the consuming code coerces it.
     const install = program.opts().install;
     expect(install === true || install === undefined).toBe(true);
+  });
+
+  it('parses --no-git as git: false', () => {
+    const program = buildProgram();
+    program.exitOverride();
+    program.action(() => {});
+
+    program.parse(['my-project', '--no-git'], { from: 'user' });
+
+    expect(program.opts().git).toBe(false);
+  });
+
+  it('leaves git defaulted to true (or undefined) when --no-git is not passed', () => {
+    const program = buildProgram();
+    program.exitOverride();
+    program.action(() => {});
+
+    program.parse(['my-project'], { from: 'user' });
+
+    const git = program.opts().git;
+    expect(git === true || git === undefined).toBe(true);
+  });
+
+  it('parses --dry-run as dryRun: true', () => {
+    const program = buildProgram();
+    program.exitOverride();
+    program.action(() => {});
+
+    program.parse(['my-project', '--dry-run'], { from: 'user' });
+
+    expect(program.opts().dryRun).toBe(true);
+  });
+
+  it('exposes --no-git and --dry-run in help output', () => {
+    const program = buildProgram();
+    program.exitOverride();
+
+    const help = program.helpInformation();
+
+    expect(help).toContain('--no-git');
+    expect(help).toContain('--dry-run');
   });
 });
 
@@ -300,6 +345,7 @@ describe('runCli scaffold integration', () => {
           calls.push({ templateDir, targetDir: target, resolved });
           return Promise.resolve({ filesWritten: 1, targetDir: target });
         },
+        gitRunner: noopGitRunner,
         installDeps: false,
       },
     );
@@ -348,6 +394,7 @@ describe('runCli scaffold integration', () => {
           return { filesWritten: 1, targetDir: target };
         },
         installRunner,
+        gitRunner: noopGitRunner,
         // installDeps defaults to true; left implicit on purpose.
       },
     );
@@ -355,6 +402,12 @@ describe('runCli scaffold integration', () => {
     expect(installCalls).toHaveLength(1);
     expect(installCalls[0]?.command).toBe('pnpm');
     expect(installCalls[0]?.cwd).toBe(targetDir);
+
+    // Success-path banner should include the "next steps" message.
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+    expect(output).toContain('Success!');
+    expect(output).toContain('pnpm run dev');
+    expect(output).toContain('cd ');
   });
 
   it('skips the install runner when installDeps is false', async () => {
@@ -382,6 +435,7 @@ describe('runCli scaffold integration', () => {
         scaffoldRunner: (_templateDir, target) =>
           Promise.resolve({ filesWritten: 1, targetDir: target }),
         installRunner,
+        gitRunner: noopGitRunner,
         installDeps: false,
       },
     );
@@ -421,6 +475,7 @@ describe('runCli scaffold integration', () => {
               return { filesWritten: 1, targetDir: target };
             },
             installRunner,
+            gitRunner: noopGitRunner,
             installDeps: true,
           },
         ),
@@ -430,5 +485,145 @@ describe('runCli scaffold integration', () => {
       exitSpy.mockRestore();
       errSpy.mockRestore();
     }
+  });
+
+  it('invokes the git runner with init + add + commit after a successful scaffold', async () => {
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'my-app');
+
+    const gitCalls: Array<{ args: ReadonlyArray<string>; cwd: string }> = [];
+    const gitRunner: GitRunner = (args, options) => {
+      gitCalls.push({ args, cwd: options.cwd });
+      return Promise.resolve();
+    };
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        scaffoldRunner: async (_templateDir, target) => {
+          await mkdir(target, { recursive: true });
+          return { filesWritten: 1, targetDir: target };
+        },
+        installRunner: { run: () => Promise.resolve() },
+        gitRunner,
+        installDeps: true,
+      },
+    );
+
+    expect(gitCalls.map((c) => c.args[0])).toEqual(['init', 'add', 'commit']);
+    for (const call of gitCalls) expect(call.cwd).toBe(targetDir);
+  });
+
+  it('skips git init when initGit is false', async () => {
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'my-app');
+
+    const gitCalls: Array<{ args: ReadonlyArray<string> }> = [];
+    const gitRunner: GitRunner = (args) => {
+      gitCalls.push({ args });
+      return Promise.resolve();
+    };
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        scaffoldRunner: (_templateDir, target) =>
+          Promise.resolve({ filesWritten: 1, targetDir: target }),
+        installRunner: { run: () => Promise.resolve() },
+        gitRunner,
+        installDeps: false,
+        initGit: false,
+      },
+    );
+
+    expect(gitCalls).toHaveLength(0);
+  });
+
+  it('swallows git failures and warns instead of aborting the scaffold', async () => {
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'placeholder.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'my-app');
+
+    const gitRunner: GitRunner = () => Promise.reject(new Error('git missing'));
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm' },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        scaffoldRunner: async (_templateDir, target) => {
+          await mkdir(target, { recursive: true });
+          return { filesWritten: 1, targetDir: target };
+        },
+        installRunner: { run: () => Promise.resolve() },
+        gitRunner,
+        installDeps: true,
+      },
+    );
+
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+    expect(output).toMatch(/git init skipped/);
+    // Success banner should still print.
+    expect(output).toContain('Success!');
+  });
+
+  it('dry-run does not create the target directory or invoke install/git runners', async () => {
+    // Build a template fixture with one real file so the default scaffold
+    // runner has something to walk; the dry-run path must not write it.
+    const templatesDir = join(tempRoot, 'templates');
+    await mkdir(join(templatesDir, 'web'), { recursive: true });
+    await writeFile(join(templatesDir, 'web', 'file.txt'), 'hi', 'utf8');
+    const targetDir = join(tempRoot, 'dry-run-target');
+
+    const installCalls: Array<{ command: string }> = [];
+    const gitCalls: Array<{ args: ReadonlyArray<string> }> = [];
+
+    await runCli(
+      'my-app',
+      { template: 'web', pm: 'pnpm', dryRun: true },
+      {
+        driver: quietDriver(),
+        gatherOptions: { interactive: true },
+        templatesDir,
+        targetDirOverride: targetDir,
+        installRunner: {
+          run(command) {
+            installCalls.push({ command });
+            return Promise.resolve();
+          },
+        },
+        gitRunner: (args) => {
+          gitCalls.push({ args });
+          return Promise.resolve();
+        },
+      },
+    );
+
+    expect(installCalls).toHaveLength(0);
+    expect(gitCalls).toHaveLength(0);
+    // Target directory must not have been created on disk.
+    expect(existsSync(targetDir)).toBe(false);
+
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+    expect(output).toMatch(/Would scaffold/);
+    expect(output).toContain('dry-run complete');
   });
 });

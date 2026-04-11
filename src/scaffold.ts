@@ -19,7 +19,7 @@
 //     owns that policy. Callers are expected to have ensured the target is
 //     empty/non-existent.
 
-import fs from 'fs-extra';
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { posix as posixPath, resolve as platformResolve, sep as platformSep } from 'node:path';
 
 import { getPackageManagerCommands } from './install.ts';
@@ -90,11 +90,24 @@ export interface ScaffoldOptions {
   targetDir: string;
   /** Resolved inputs from gatherInputs() — provides projectName for tokens. */
   resolvedInputs: ResolvedInputs;
+  /**
+   * When `true`, the scaffold walks the template and collects the list of
+   * files that would be written but does NOT create directories or write
+   * any files. Used by the CLI `--dry-run` flag.
+   */
+  dryRun?: boolean;
 }
 
 export interface ScaffoldResult {
   filesWritten: number;
   targetDir: string;
+  /**
+   * Paths (relative to targetDir, POSIX-style) of files that were written
+   * — or would have been written in dry-run mode. Present only when the
+   * caller opted into collecting them; otherwise omitted to keep the
+   * common success path allocation-free.
+   */
+  plannedFiles?: ReadonlyArray<string>;
 }
 
 /**
@@ -221,10 +234,12 @@ async function walkAndCopy(
   destRelativeDir: string,
   vars: Readonly<Record<string, string>>,
   filesWritten: number,
+  dryRun: boolean,
+  plannedFiles: string[],
 ): Promise<number> {
   const absSourceDir =
     sourceRelativeDir === '' ? templateDir : posixPath.join(templateDir, sourceRelativeDir);
-  const entries = await fs.readdir(absSourceDir, { withFileTypes: true });
+  const entries = await readdir(absSourceDir, { withFileTypes: true });
 
   // Sort by name for deterministic order. Sorting by codepoint is sufficient
   // because filenames are not locale-sensitive in this codebase.
@@ -255,7 +270,9 @@ async function walkAndCopy(
     assertContained(destPath, targetDir);
 
     if (entry.isDirectory()) {
-      await fs.ensureDir(toPlatform(destPath));
+      if (!dryRun) {
+        await mkdir(toPlatform(destPath), { recursive: true });
+      }
       count = await walkAndCopy(
         templateDir,
         targetDir,
@@ -263,18 +280,27 @@ async function walkAndCopy(
         childDestRelative,
         vars,
         count,
+        dryRun,
+        plannedFiles,
       );
     } else if (entry.isFile()) {
       const sourceAbs = toPlatform(posixPath.join(templateDir, childSourceRelative));
       const destAbs = toPlatform(destPath);
-      await fs.ensureDir(toPlatform(posixPath.dirname(destPath)));
 
-      if (isBinaryFile(entry.name)) {
-        await fs.copyFile(sourceAbs, destAbs);
+      if (dryRun) {
+        // Just record the destination; skip any filesystem mutation.
+        plannedFiles.push(childDestRelative);
       } else {
-        const contents = await fs.readFile(sourceAbs, 'utf8');
-        const substituted = substituteVariables(contents, vars);
-        await fs.writeFile(destAbs, substituted, 'utf8');
+        await mkdir(toPlatform(posixPath.dirname(destPath)), { recursive: true });
+
+        if (isBinaryFile(entry.name)) {
+          await copyFile(sourceAbs, destAbs);
+        } else {
+          const contents = await readFile(sourceAbs, 'utf8');
+          const substituted = substituteVariables(contents, vars);
+          await writeFile(destAbs, substituted, 'utf8');
+        }
+        plannedFiles.push(childDestRelative);
       }
       count += 1;
     }
@@ -342,16 +368,19 @@ export function buildSubstitutionVars(resolvedInputs: ResolvedInputs): Record<st
  *   - installing dependencies (Story 1.4)
  */
 export async function scaffoldProject(options: ScaffoldOptions): Promise<ScaffoldResult> {
-  const { templateDir, targetDir, resolvedInputs } = options;
+  const { templateDir, targetDir, resolvedInputs, dryRun = false } = options;
 
-  const templateStat = await fs.stat(templateDir);
+  const templateStat = await stat(templateDir);
   if (!templateStat.isDirectory()) {
     throw new Error(`Template path is not a directory: ${templateDir}`);
   }
 
-  await fs.ensureDir(targetDir);
+  if (!dryRun) {
+    await mkdir(targetDir, { recursive: true });
+  }
 
   const vars = buildSubstitutionVars(resolvedInputs);
+  const plannedFiles: string[] = [];
   const filesWritten = await walkAndCopy(
     toPosix(templateDir),
     toPosix(targetDir),
@@ -359,7 +388,9 @@ export async function scaffoldProject(options: ScaffoldOptions): Promise<Scaffol
     '',
     vars,
     0,
+    dryRun,
+    plannedFiles,
   );
 
-  return { filesWritten, targetDir };
+  return { filesWritten, targetDir, plannedFiles };
 }

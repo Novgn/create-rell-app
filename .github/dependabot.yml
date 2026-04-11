@@ -1,0 +1,51 @@
+version: 2
+updates:
+  # CLI source deps
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      cli-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Solo web template
+  - package-ecosystem: npm
+    directory: /templates/web
+    schedule:
+      interval: weekly
+    groups:
+      web-template-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Solo mobile template
+  - package-ecosystem: npm
+    directory: /templates/mobile
+    schedule:
+      interval: weekly
+    groups:
+      mobile-template-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Monolith root
+  - package-ecosystem: npm
+    directory: /templates/monolith
+    schedule:
+      interval: weekly
+    groups:
+      monolith-template-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

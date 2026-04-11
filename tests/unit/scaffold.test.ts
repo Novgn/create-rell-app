@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
@@ -346,6 +346,48 @@ describe('scaffoldProject', () => {
     // Just verify the path is shaped like an absolute platform path; we
     // don't want to hard-code the separator in the assertion.
     expect(result.targetDir).toContain(sep);
+  });
+
+  it('does not write any files when dryRun is true', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    const result = await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+      dryRun: true,
+    });
+
+    // filesWritten counts what would be written, same as the non-dry-run
+    // path — it lets the CLI print a reliable number.
+    expect(result.filesWritten).toBe(7);
+    // But nothing touched the filesystem: the target dir was never created.
+    expect(existsSync(dirs.targetDir)).toBe(false);
+  });
+
+  it('collects plannedFiles (POSIX relative paths) when dryRun is true', async () => {
+    await makeTemplateFixture(dirs.templateDir);
+
+    const result = await scaffoldProject({
+      templateDir: dirs.templateDir,
+      targetDir: dirs.targetDir,
+      resolvedInputs: { projectName: 'my-app', template: 'web', pm: 'pnpm' },
+      dryRun: true,
+    });
+
+    expect(result.plannedFiles).toBeDefined();
+    const files = [...(result.plannedFiles ?? [])].sort();
+    expect(files).toEqual(
+      [
+        '.gitignore',
+        'README.md',
+        'assets/logo.png',
+        'nested/my-app/index.ts',
+        'package.json',
+        'src/my-app.config.ts',
+        'unknown-token.txt',
+      ].sort(),
+    );
   });
 });
 
