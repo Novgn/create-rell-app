@@ -11,8 +11,6 @@ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
-# Drizzle / direct Postgres connection — used by Drizzle Kit (migration
-# tooling) only, NOT by the mobile app at runtime. Export this in the
-# shell before running `{{pmRunCmd}} db:generate` or `db:migrate`, or put
-# it in a separate .env file your tooling loads.
+# Drizzle / direct Postgres connection (only needed to run db:migrate locally).
+# Mobile ships db:* scripts and a migrations/ dir; set this to apply migrations.
 # DATABASE_URL=postgresql://postgres:[password]@[project-ref].supabase.co:5432/postgres
