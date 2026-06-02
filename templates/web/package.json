@@ -6,6 +6,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "check-env": "node scripts/check-env.mjs",
+    "predev": "node scripts/check-env.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

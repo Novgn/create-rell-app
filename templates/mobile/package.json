@@ -7,6 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "check-env": "node scripts/check-env.mjs",
+    "prestart": "node scripts/check-env.mjs",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
