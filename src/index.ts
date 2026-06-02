@@ -11,14 +11,14 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { execa } from 'execa';
 import { stat } from 'node:fs/promises';
-import { dirname, posix as posixPath, resolve, resolve as platformResolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import pkg from '../package.json' with { type: 'json' };
+import { buildNextStepsLines } from './banner.ts';
 import {
   cleanupLockFiles,
   defaultProcessRunner,
-  getPackageManagerCommands,
   installDependencies,
   InstallFailedError,
 } from './install.ts';
@@ -405,37 +405,21 @@ async function initGitRepo(targetDir: string, gitRunner: GitRunner): Promise<voi
 }
 
 /**
- * Print a create-next-app-style "next steps" banner after a successful
- * scaffold so the developer knows exactly which commands to run next.
+ * Print the post-scaffold next-steps banner. Composition lives in
+ * `buildNextStepsLines` (pure, tested); this only styles + writes.
  */
 function printNextSteps(resolved: ResolvedInputs, targetDir: string): void {
-  const cmds = getPackageManagerCommands(resolved.pm);
-  // Compute a display-relative cd path when the target sits underneath the
-  // current working directory; otherwise fall back to the absolute path.
-  const absolute = platformResolve(targetDir);
-  const cwd = process.cwd();
-  const relative = absolute.startsWith(cwd)
-    ? './' + posixPath.relative(cwd, absolute).split(/[\\/]/).join('/')
-    : absolute;
-
+  const lines = buildNextStepsLines(resolved, targetDir);
   console.log('');
-  console.log(
-    chalk.green('Success!') + ` Created ${resolved.projectName} at ${targetDir}`,
-  );
-  console.log('');
-  console.log('Inside that directory, you can run:');
-  console.log('');
-  console.log('  ' + chalk.cyan(`${cmds.run} dev`));
-  console.log('    Start the dev server');
-  console.log('');
-  console.log('  ' + chalk.cyan(`${cmds.run} build`));
-  console.log('    Build for production');
-  console.log('');
-  console.log('We suggest you begin by typing:');
-  console.log('');
-  console.log('  ' + chalk.cyan(`cd ${relative}`));
-  console.log('  ' + chalk.cyan(`${cmds.run} dev`));
-  console.log('');
+  for (const line of lines) {
+    if (line.startsWith('Success!')) {
+      console.log(chalk.green('Success!') + line.slice('Success!'.length));
+    } else if (/^\s+(cd |[0-9]\. )/.test(line)) {
+      console.log(chalk.cyan(line));
+    } else {
+      console.log(line);
+    }
+  }
 }
 
 /**
