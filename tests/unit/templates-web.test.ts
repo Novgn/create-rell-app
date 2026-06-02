@@ -81,6 +81,8 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   'components/forms/ProfileForm.tsx',
   // stores/
   'stores/app-store.ts',
+  // scripts/
+  'scripts/check-env.mjs',
 ];
 
 describe('templates/web static file shape (Story 5.1)', () => {
