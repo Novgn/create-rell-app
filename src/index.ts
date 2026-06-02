@@ -66,6 +66,8 @@ export interface CliOptions {
    * disk and skips git init and dependency install.
    */
   dryRun?: boolean;
+  /** Maps to `--yes`/`-y`: skip prompts, default unspecified values. */
+  yes?: boolean;
 }
 
 /**
@@ -85,6 +87,7 @@ export function buildProgram(): Command {
     .argument('<project-name>', 'name of the project directory to create')
     .option('-t, --template <template>', 'template to use (web | mobile | monolith)')
     .option('--pm <packageManager>', 'package manager to use (npm | pnpm | yarn)')
+    .option('-y, --yes', 'skip prompts; default unspecified values to web + npm')
     .option('--no-install', 'skip dependency installation after scaffolding')
     .option('--no-git', 'skip git repository initialization after scaffolding')
     .option(
@@ -229,9 +232,18 @@ export async function runCli(
 
     const partial = buildPartialInputs(projectName, options.template, options.pm);
 
+    // `--yes`: fill any unspecified values with defaults and skip prompting.
+    const useDefaults = options.yes === true;
+    if (useDefaults) {
+      partial.template ??= 'web';
+      partial.pm ??= 'npm';
+    }
+
     let resolved;
     try {
-      resolved = await gatherInputs(partial, driver, { interactive });
+      resolved = await gatherInputs(partial, driver, {
+        interactive: useDefaults ? false : interactive,
+      });
     } catch (err) {
       if (err instanceof PromptCancelledError) {
         // User hit Ctrl+C during a prompt. Exit cleanly without a trace.
