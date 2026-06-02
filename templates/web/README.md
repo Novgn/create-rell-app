@@ -50,7 +50,15 @@ Solo Web app scaffolded by [`create-rell-app`](https://github.com/waynewonder3/c
    {{pmInstallCmd}}
    ```
 
-2. Copy `.env.example` to `.env.local` and fill in the Clerk + Supabase keys (see comments in the file for required variables).
+2. Configure environment variables (a ready-to-edit `.env.local` was created for you):
+
+   ```sh
+   {{pmRunCmd}} check-env
+   ```
+
+   This lists every Clerk + Supabase key still missing, with a link to where each
+   one lives. `{{pmRunCmd}} dev` runs it automatically and stops until the required
+   keys are set.
 
 3. Run the initial database migration:
 
