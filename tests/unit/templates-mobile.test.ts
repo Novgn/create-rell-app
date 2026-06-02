@@ -363,7 +363,8 @@ describe('templates/mobile end-to-end scaffold (Story 5.2)', () => {
       resolvedInputs: { projectName: 'my-mobile-app', template: 'mobile', pm: 'pnpm' },
     });
 
-    expect(result.filesWritten).toBe(EXPECTED_MOBILE_FILES.length);
+    // +1 for the auto-generated .env.local sibling
+    expect(result.filesWritten).toBe(EXPECTED_MOBILE_FILES.length + 1);
 
     const files = await walkAllFiles(targetDir);
     const textExtensions = new Set([

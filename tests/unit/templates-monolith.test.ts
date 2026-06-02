@@ -1798,7 +1798,8 @@ describe('templates/monolith end-to-end scaffold', () => {
       resolvedInputs: { projectName: 'my-app', template: 'monolith', pm: 'pnpm' },
     });
 
-    expect(result.filesWritten).toBe(EXPECTED_TEMPLATE_FILES.length);
+    // +1 for the auto-generated .env.local sibling
+    expect(result.filesWritten).toBe(EXPECTED_TEMPLATE_FILES.length + 1);
 
     const files = await walkAllFiles(targetDir);
     const textExtensions = new Set([

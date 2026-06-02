@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 
@@ -508,5 +508,61 @@ describe('scaffoldProject (path traversal defence)', () => {
 
     const pkg = await readFile(join(dirs.targetDir, 'package.json'), 'utf8');
     expect(pkg).toBe('"name": "My SaaS App"');
+  });
+});
+
+describe('scaffoldProject .env.local materialization', () => {
+  it('creates .env.local alongside each .env.example with identical content', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'crapp-envlocal-'));
+    const tpl = join(root, 'tpl');
+    await mkdir(tpl, { recursive: true });
+    await writeFile(join(tpl, '_env.example'), 'FOO=\n# DATABASE_URL=x\n', 'utf8');
+
+    const target = join(root, 'out');
+    await scaffoldProject({
+      templateDir: tpl,
+      targetDir: target,
+      resolvedInputs: { projectName: 'p', template: 'web', pm: 'npm' },
+    });
+
+    const example = await readFile(join(target, '.env.example'), 'utf8');
+    const local = await readFile(join(target, '.env.local'), 'utf8');
+    expect(local).toBe(example);
+  });
+
+  it('does not overwrite an existing .env.local in the template', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'crapp-envlocal2-'));
+    const tpl = join(root, 'tpl');
+    await mkdir(tpl, { recursive: true });
+    await writeFile(join(tpl, '_env.example'), 'FOO=\n', 'utf8');
+    await writeFile(join(tpl, '_env.local'), 'FOO=already\n', 'utf8'); // renames to .env.local
+
+    const target = join(root, 'out');
+    await scaffoldProject({
+      templateDir: tpl,
+      targetDir: target,
+      resolvedInputs: { projectName: 'p', template: 'web', pm: 'npm' },
+    });
+
+    const local = await readFile(join(target, '.env.local'), 'utf8');
+    expect(local).toBe('FOO=already\n');
+  });
+
+  it('dry-run records .env.local in plannedFiles but writes nothing', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'crapp-envlocal3-'));
+    const tpl = join(root, 'tpl');
+    await mkdir(tpl, { recursive: true });
+    await writeFile(join(tpl, '_env.example'), 'FOO=\n', 'utf8');
+
+    const target = join(root, 'out');
+    const result = await scaffoldProject({
+      templateDir: tpl,
+      targetDir: target,
+      resolvedInputs: { projectName: 'p', template: 'web', pm: 'npm' },
+      dryRun: true,
+    });
+
+    expect(result.plannedFiles).toContain('.env.local');
+    await expect(stat(join(target, '.env.local'))).rejects.toThrow();
   });
 });
