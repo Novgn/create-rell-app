@@ -322,21 +322,19 @@ async function executeScaffoldFlow(opts: ExecuteScaffoldFlowOptions): Promise<vo
   } = opts;
   const templateDir = resolve(templatesDir, resolved.template);
 
-  console.log('[create-rell-app] resolved configuration:');
+  console.log('');
+  console.log(chalk.bold('create-rell-app'));
   console.log('  project name : %s', resolved.projectName);
   console.log('  template     : %s', resolved.template);
   console.log('  package mgr  : %s', resolved.pm);
-  if (dryRun) {
-    console.log('  mode         : %s', 'dry-run (no files written)');
-  }
+  if (dryRun) console.log('  mode         : %s', 'dry-run (no files written)');
 
   // Story 1.3: scaffold if the template directory is shipped, otherwise
   // print a friendly placeholder. Real templates land in Epic 2+.
   const templateExists = await pathExists(templateDir);
   if (!templateExists) {
     console.log(
-      '[create-rell-app] template "%s" is not yet bundled — coming in Epic 2. ' +
-        'Skipping scaffold for now.',
+      '[create-rell-app] template "%s" is not yet bundled in this build — skipping scaffold.',
       resolved.template,
     );
     return;
