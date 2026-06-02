@@ -198,30 +198,27 @@ describe('cross-template DB naming consistency', () => {
 // ===== Env var naming =====
 
 describe('cross-template environment variable naming', () => {
-  const webTemplates: ReadonlyArray<TemplateName> = ['monolith', 'web'];
-  const mobileTemplates: ReadonlyArray<TemplateName> = ['monolith', 'mobile'];
-
-  it.each(webTemplates)(
-    '_env.example in %s documents NEXT_PUBLIC_CLERK/SUPABASE keys + CLERK_SECRET_KEY',
-    async (tpl) => {
-      const text = await readFile(join(ROOT_DIRS[tpl], '_env.example'), 'utf8');
+  it('web examples document NEXT_PUBLIC_CLERK/SUPABASE keys + CLERK_SECRET_KEY', async () => {
+    for (const p of [join(WEB_DIR, '_env.example'), join(MONOLITH_WEB_DIR, '_env.example')]) {
+      const text = await readFile(p, 'utf8');
       expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
       expect(text).toContain('CLERK_SECRET_KEY');
       expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
       expect(text).toContain('NEXT_PUBLIC_SUPABASE_URL');
       expect(text).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    },
-  );
+    }
+  });
 
-  it.each(mobileTemplates)(
-    '_env.example in %s documents EXPO_PUBLIC_CLERK/SUPABASE keys',
-    async (tpl) => {
-      const text = await readFile(join(ROOT_DIRS[tpl], '_env.example'), 'utf8');
+  it('mobile examples document EXPO_PUBLIC_CLERK/SUPABASE keys (and no server secrets)', async () => {
+    for (const p of [join(MOBILE_DIR, '_env.example'), join(MONOLITH_MOBILE_DIR, '_env.example')]) {
+      const text = await readFile(p, 'utf8');
       expect(text).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY');
       expect(text).toContain('EXPO_PUBLIC_SUPABASE_URL');
       expect(text).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
-    },
-  );
+      expect(text).not.toContain('NEXT_PUBLIC_');
+      expect(text).not.toContain('CLERK_SECRET_KEY');
+    }
+  });
 
   it('solo web _env.example does NOT leak mobile EXPO_PUBLIC_ keys', async () => {
     const text = await readFile(join(WEB_DIR, '_env.example'), 'utf8');

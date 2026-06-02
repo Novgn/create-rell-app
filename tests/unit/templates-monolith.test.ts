@@ -24,7 +24,6 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'package.json',
   'tsconfig.base.json',
   '_gitignore',
-  '_env.example',
   'README.md',
   'apps/web/package.json',
   'apps/web/next.config.ts',
@@ -112,6 +111,8 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/mobile/_eslint.config.mjs',
   'apps/web/scripts/check-env.mjs',
   'apps/mobile/scripts/check-env.mjs',
+  'apps/web/_env.example',
+  'apps/mobile/_env.example',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -284,19 +285,25 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
   });
 
-  it('_env.example documents every required key', async () => {
-    const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
-    const requiredKeys = [
+  it('per-app _env.example files document every required key', async () => {
+    const webText = await readFile(join(WEB_DIR, '_env.example'), 'utf8');
+    const mobileText = await readFile(join(MOBILE_DIR, '_env.example'), 'utf8');
+    const webKeys = [
       'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
       'CLERK_SECRET_KEY',
       'NEXT_PUBLIC_SUPABASE_URL',
       'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    ];
+    const mobileKeys = [
       'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
       'EXPO_PUBLIC_SUPABASE_URL',
       'EXPO_PUBLIC_SUPABASE_ANON_KEY',
     ];
-    for (const key of requiredKeys) {
-      expect(text).toContain(key);
+    for (const key of webKeys) {
+      expect(webText).toContain(key);
+    }
+    for (const key of mobileKeys) {
+      expect(mobileText).toContain(key);
     }
   });
 
@@ -585,8 +592,8 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('/dashboard/billing');
   });
 
-  it('_env.example documents CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
-    const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
+  it('web _env.example documents CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
+    const text = await readFile(join(WEB_DIR, '_env.example'), 'utf8');
     expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
   });
 
@@ -1800,8 +1807,8 @@ describe('templates/monolith end-to-end scaffold', () => {
       resolvedInputs: { projectName: 'my-app', template: 'monolith', pm: 'pnpm' },
     });
 
-    // +1 for the auto-generated .env.local sibling
-    expect(result.filesWritten).toBe(EXPECTED_TEMPLATE_FILES.length + 1);
+    // +2 for the auto-generated .env.local siblings (one per app)
+    expect(result.filesWritten).toBe(EXPECTED_TEMPLATE_FILES.length + 2);
 
     const files = await walkAllFiles(targetDir);
     const textExtensions = new Set([
@@ -1830,7 +1837,7 @@ describe('templates/monolith end-to-end scaffold', () => {
     expect(leftoverTokens).toEqual([]);
   });
 
-  it('renames _gitignore to .gitignore and _env.example to .env.example', async () => {
+  it('renames _gitignore to .gitignore and per-app _env.example to .env.example', async () => {
     await scaffoldProject({
       templateDir: MONOLITH_DIR,
       targetDir,
@@ -1839,7 +1846,8 @@ describe('templates/monolith end-to-end scaffold', () => {
 
     const files = await walkAllFiles(targetDir);
     expect(files).toContain('.gitignore');
-    expect(files).toContain('.env.example');
+    expect(files).toContain('apps/web/.env.example');
+    expect(files).toContain('apps/mobile/.env.example');
     expect(files).not.toContain('_gitignore');
     expect(files).not.toContain('_env.example');
   });

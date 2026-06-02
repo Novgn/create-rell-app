@@ -11,7 +11,6 @@ Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewo
 │   └── mobile/   # Expo / React Native client
 ├── packages/
 │   └── shared/   # Drizzle schema + shared TypeScript types
-├── .env.example
 ├── package.json  # workspace root
 └── tsconfig.base.json
 ```
@@ -24,7 +23,14 @@ Full-stack monolith scaffolded by [`create-rell-app`](https://github.com/waynewo
    {{pmInstallCmd}}
    ```
 
-2. Copy `.env.example` to `.env.local` and fill in the Clerk + Supabase keys (see comments in the file for required variables).
+2. Configure environment variables (a ready-to-edit `.env.local` is created for each app):
+
+   ```sh
+   {{pmRunCmd}} check-env          # reports which keys are still missing, with links
+   ```
+
+   Fill in `apps/web/.env.local` (Clerk + Supabase) and `apps/mobile/.env.local`
+   (Expo public keys) before running the apps.
 
 3. Start the web dev server:
 
