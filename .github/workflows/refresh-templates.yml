@@ -1,0 +1,62 @@
+# Weekly refresh of pinned template dependencies (Dependabot is intentionally
+# disabled for template workspaces). Bumps each template package.json to the
+# latest versions, runs the full smoke matrix, and opens a PR only when green.
+# Never auto-merges — a human reviews the bump.
+
+name: Refresh template deps
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install CLI dev deps
+        run: npm ci
+
+      - name: Bump template dependencies to latest
+        run: |
+          set -e
+          for f in \
+            templates/web/package.json \
+            templates/mobile/package.json \
+            templates/monolith/package.json \
+            templates/monolith/apps/web/package.json \
+            templates/monolith/apps/mobile/package.json \
+            templates/monolith/packages/shared/package.json; do
+            echo "Bumping $f"
+            npx --yes npm-check-updates -u --packageFile "$f"
+          done
+
+      - name: Build + smoke test all templates
+        run: npm run test:smoke
+
+      - name: Open PR with the bumped versions
+        if: success()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/refresh-template-deps
+          title: 'chore(templates): weekly dependency refresh'
+          commit-message: 'chore(templates): refresh pinned dependencies'
+          labels: dependencies, templates
+          body: |
+            Automated weekly bump of pinned template dependencies.
+            The smoke matrix (scaffold → install → build → lint → typecheck for
+            all three templates) passed on these versions. Review the diff before
+            merging — major framework bumps may still need template code changes.
