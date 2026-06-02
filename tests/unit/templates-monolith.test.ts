@@ -110,6 +110,8 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   '_husky/pre-commit',
   'apps/web/_eslint.config.mjs',
   'apps/mobile/_eslint.config.mjs',
+  'apps/web/scripts/check-env.mjs',
+  'apps/mobile/scripts/check-env.mjs',
 ];
 
 describe('templates/monolith static file shape', () => {

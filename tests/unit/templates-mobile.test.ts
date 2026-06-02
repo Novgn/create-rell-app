@@ -60,6 +60,8 @@ const EXPECTED_MOBILE_FILES: ReadonlyArray<string> = [
   'components/shared/SkeletonCard.tsx',
   // stores/
   'stores/app-store.ts',
+  // scripts/
+  'scripts/check-env.mjs',
 ];
 
 describe('templates/mobile static file shape (Story 5.2)', () => {
