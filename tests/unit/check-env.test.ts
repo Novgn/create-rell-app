@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error — check-env.mjs is an untyped dependency-free JS file; runtime behaviour is verified below.
 import { parseEnvExample, parseDotenv, evaluate } from '../../templates/web/scripts/check-env.mjs';
 
 describe('check-env parseEnvExample', () => {
