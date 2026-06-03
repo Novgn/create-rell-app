@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-03
+
 A UX-focused release that closes the gap between "scaffold succeeded" and
 "app actually runs," and fixes a next-steps banner that printed invalid
 commands for two of the three templates.
@@ -53,6 +55,10 @@ commands for two of the three templates.
   workspace package into `node_modules` by name, and `@types/node` is now
   declared in `packages/shared`. `install`, `lint`, and `typecheck` pass under
   npm and pnpm (both verified) and yarn.
+- **CI: Windows smoke no longer times out.** windows-latest needs ~11 minutes to
+  npm-install the mobile/monolith dependency trees; the smoke runner's per-step
+  timeout was raised from 10 to 20 minutes, turning the Windows smoke matrix
+  green for the first time since 0.2.0.
 
 ### Changed
 
