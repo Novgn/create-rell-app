@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+A UX-focused release that closes the gap between "scaffold succeeded" and
+"app actually runs," and fixes a next-steps banner that printed invalid
+commands for two of the three templates.
+
+### Added
+
+- **Guided env onboarding.** Every scaffold now drops a ready-to-edit
+  `.env.local` (copied from `.env.example`) and ships a dependency-free env
+  **doctor** at `scripts/check-env.mjs`, wired into `predev` (web) / `prestart`
+  (mobile). It reads `.env.example` to learn which keys are required vs optional,
+  reports exactly which are still missing with a dashboard link for each, and
+  blocks `dev`/`start` only when a required key is unset — replacing the previous
+  cryptic runtime crash. It never prints env values.
+- **`--yes` / `-y` flag** — skip all prompts, defaulting any unspecified value to
+  `web` + `npm`. Works in TTY and non-TTY (CI) contexts.
+- **`keywords`** in `package.json` and a top-level **`LICENSE`** file (MIT).
+- **`refresh-templates` workflow** (`.github/workflows/`) — a weekly job that
+  bumps the pinned template dependencies and opens a PR only when the full smoke
+  matrix passes, so generated projects don't silently rot now that Dependabot is
+  off for the template workspaces.
+
+### Fixed
+
+- **Next-steps banner was wrong for 2 of 3 templates.** It hardcoded
+  `<pm> run dev` / `<pm> run build`, but the mobile template has no `dev` script
+  (uses `start`) and the monolith root has no `dev` (uses `dev:web`). Mobile now
+  prints `<pm> start` and the monolith prints `<pm> run dev:web`. The banner is
+  also reordered to walk through env → `db:migrate` → dev.
+- **Monolith loaded env from the wrong place.** `dev:web` runs `next dev` in
+  `apps/web`, which loads `apps/web/.env.local` — but the template shipped a
+  single *root* `_env.example` telling users to put env at the monolith root,
+  which Next never reads. Env is now per-app (`apps/web/.env.example`,
+  `apps/mobile/.env.example`), each auto-materialized into the app's own
+  `.env.local`. The shared db client's `DATABASE_URL` hint was updated to match.
+- **Solo mobile `.env.example`** now documents the optional `DATABASE_URL` (the
+  mobile template ships `db:migrate` + a `migrations/` dir) and points at the
+  auto-created `.env.local` instead of `.env`.
+- **Monolith now works under npm, pnpm, and yarn** (previously npm-only). Three
+  npm-specific assumptions were fixed: (1) the nine `npm run --prefix <dir>`
+  workspace scripts are now `cd <dir> && {{pmRunCmd}}` (PM-agnostic); (2) a
+  `pnpm-workspace.yaml` is shipped so `pnpm install` discovers the workspaces
+  (npm/yarn use the package.json `workspaces` field); (3) `@<project>/shared`
+  resolves via a TypeScript `paths` alias instead of relying on npm hoisting the
+  workspace package into `node_modules` by name, and `@types/node` is now
+  declared in `packages/shared`. `install`, `lint`, and `typecheck` pass under
+  npm and pnpm (both verified) and yarn.
+
+### Changed
+
+- Cleaner, branded CLI console output; removed stale internal story/epic
+  comments and a separator-edge-case in the `cd` path of the success banner.
+
+### Docs
+
+- README documents the previously-undocumented `--no-git`, `--dry-run`, and new
+  `--yes` flags, plus the env-first setup step.
+
+### Known limitations
+
+- Running the **Expo** app (`dev:mobile`) under pnpm or yarn-berry may need a
+  Metro resolver alias for `@<project>/shared` — Metro doesn't read the
+  TypeScript `paths` alias, and only npm/yarn-classic symlink the workspace
+  package into `node_modules` by name. `install`, `lint`, and `typecheck` pass
+  under all three package managers; this only affects bundling the mobile app at
+  runtime under non-npm managers.
+
 ## [0.2.0] - 2026-04-11
 
 Substantial template hardening and CLI ergonomics release. No breaking API

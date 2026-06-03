@@ -48,7 +48,15 @@ Solo Mobile app scaffolded by [`create-rell-app`](https://github.com/waynewonder
    {{pmInstallCmd}}
    ```
 
-2. Copy `.env.example` to `.env` and fill in the Clerk + Supabase keys.
+2. Configure environment variables (a ready-to-edit `.env.local` was created for you):
+
+   ```sh
+   {{pmRunCmd}} check-env
+   ```
+
+   This lists every Clerk + Supabase key still missing, with a link to where each
+   one lives. `{{pmRunCmd}} start` runs it automatically and stops until the required
+   keys are set.
 
 3. Start the Expo dev server:
 

@@ -60,6 +60,8 @@ const EXPECTED_MOBILE_FILES: ReadonlyArray<string> = [
   'components/shared/SkeletonCard.tsx',
   // stores/
   'stores/app-store.ts',
+  // scripts/
+  'scripts/check-env.mjs',
 ];
 
 describe('templates/mobile static file shape (Story 5.2)', () => {
@@ -363,7 +365,8 @@ describe('templates/mobile end-to-end scaffold (Story 5.2)', () => {
       resolvedInputs: { projectName: 'my-mobile-app', template: 'mobile', pm: 'pnpm' },
     });
 
-    expect(result.filesWritten).toBe(EXPECTED_MOBILE_FILES.length);
+    // +1 for the auto-generated .env.local sibling
+    expect(result.filesWritten).toBe(EXPECTED_MOBILE_FILES.length + 1);
 
     const files = await walkAllFiles(targetDir);
     const textExtensions = new Set([

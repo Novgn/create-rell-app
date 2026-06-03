@@ -1,0 +1,20 @@
+# {{projectName}} (web) — environment variables
+#
+# A ready-to-edit copy is created for you as apps/web/.env.local. Fill in the
+# values below, then run `{{pmRunCmd}} check-env` (from apps/web) to verify.
+# Never commit real credentials — .env.local is gitignored.
+
+# Clerk — get these from https://dashboard.clerk.com/
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+
+# Clerk Billing webhook signing secret — Clerk Dashboard → Webhooks:
+# https://dashboard.clerk.com/last-active?path=webhooks
+CLERK_BILLING_WEBHOOK_SIGNING_SECRET=
+
+# Supabase — Settings → API: https://supabase.com/dashboard/project/_/settings/api
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Drizzle / direct Postgres connection (Supabase → Settings → Database)
+# DATABASE_URL=postgresql://postgres:[password]@[project-ref].supabase.co:5432/postgres

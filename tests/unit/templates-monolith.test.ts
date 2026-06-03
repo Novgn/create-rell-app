@@ -24,7 +24,6 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'package.json',
   'tsconfig.base.json',
   '_gitignore',
-  '_env.example',
   'README.md',
   'apps/web/package.json',
   'apps/web/next.config.ts',
@@ -110,6 +109,11 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   '_husky/pre-commit',
   'apps/web/_eslint.config.mjs',
   'apps/mobile/_eslint.config.mjs',
+  'apps/web/scripts/check-env.mjs',
+  'apps/mobile/scripts/check-env.mjs',
+  'apps/web/_env.example',
+  'apps/mobile/_env.example',
+  'pnpm-workspace.yaml',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -206,6 +210,40 @@ describe('templates/monolith static file shape', () => {
     expect(text).toContain('packages/');
     expect(text).toContain('shared/');
   });
+
+  it('monolith root scripts are package-manager-agnostic (no npm-only --prefix)', async () => {
+    const pkg = JSON.parse(await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8'));
+    for (const [name, cmd] of Object.entries(pkg.scripts)) {
+      expect(cmd, `${name} must not use npm-only --prefix`).not.toContain('--prefix');
+    }
+    expect(pkg.scripts['dev:web']).toContain('cd apps/web');
+    expect(pkg.scripts['lint']).toContain('cd apps/web');
+    expect(pkg.scripts['db:migrate']).toContain('cd packages/shared');
+  });
+
+  it('monolith ships pnpm-workspace.yaml for pnpm workspace discovery', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'pnpm-workspace.yaml'), 'utf8');
+    expect(text).toContain('apps/*');
+    expect(text).toContain('packages/*');
+  });
+
+  // The shared package resolves via a TS path alias + an explicit @types/node
+  // declaration rather than npm's implicit workspace hoisting, so `tsc -b`
+  // passes under pnpm/yarn too (CI smoke only exercises npm — this is the guard).
+  it('app tsconfigs alias @<project>/shared into packages/shared', async () => {
+    for (const dir of [WEB_DIR, MOBILE_DIR]) {
+      const text = await readFile(join(dir, '_tsconfig.json'), 'utf8');
+      expect(text, `${dir} missing the shared path alias`).toContain('@{{projectNameKebab}}/shared');
+      expect(text, `${dir} alias should point into packages/shared`).toContain('packages/shared');
+    }
+  });
+
+  it('packages/shared declares @types/node (its tsconfig sets types:["node"])', async () => {
+    const pkg = JSON.parse(await readFile(join(SHARED_DIR, 'package.json'), 'utf8')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.devDependencies['@types/node']).toBeDefined();
+  });
 });
 
 // === Story 2.2 — Clerk + Supabase native 3P auth assertions ===
@@ -282,19 +320,25 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
   });
 
-  it('_env.example documents every required key', async () => {
-    const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
-    const requiredKeys = [
+  it('per-app _env.example files document every required key', async () => {
+    const webText = await readFile(join(WEB_DIR, '_env.example'), 'utf8');
+    const mobileText = await readFile(join(MOBILE_DIR, '_env.example'), 'utf8');
+    const webKeys = [
       'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
       'CLERK_SECRET_KEY',
       'NEXT_PUBLIC_SUPABASE_URL',
       'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    ];
+    const mobileKeys = [
       'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
       'EXPO_PUBLIC_SUPABASE_URL',
       'EXPO_PUBLIC_SUPABASE_ANON_KEY',
     ];
-    for (const key of requiredKeys) {
-      expect(text).toContain(key);
+    for (const key of webKeys) {
+      expect(webText).toContain(key);
+    }
+    for (const key of mobileKeys) {
+      expect(mobileText).toContain(key);
     }
   });
 
@@ -583,8 +627,8 @@ describe('templates/monolith Clerk + Supabase wiring (Story 2.2)', () => {
     expect(text).toContain('/dashboard/billing');
   });
 
-  it('_env.example documents CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
-    const text = await readFile(join(MONOLITH_DIR, '_env.example'), 'utf8');
+  it('web _env.example documents CLERK_BILLING_WEBHOOK_SIGNING_SECRET', async () => {
+    const text = await readFile(join(WEB_DIR, '_env.example'), 'utf8');
     expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
   });
 
@@ -1798,7 +1842,8 @@ describe('templates/monolith end-to-end scaffold', () => {
       resolvedInputs: { projectName: 'my-app', template: 'monolith', pm: 'pnpm' },
     });
 
-    expect(result.filesWritten).toBe(EXPECTED_TEMPLATE_FILES.length);
+    // +2 for the auto-generated .env.local siblings (one per app)
+    expect(result.filesWritten).toBe(EXPECTED_TEMPLATE_FILES.length + 2);
 
     const files = await walkAllFiles(targetDir);
     const textExtensions = new Set([
@@ -1827,7 +1872,7 @@ describe('templates/monolith end-to-end scaffold', () => {
     expect(leftoverTokens).toEqual([]);
   });
 
-  it('renames _gitignore to .gitignore and _env.example to .env.example', async () => {
+  it('renames _gitignore to .gitignore and per-app _env.example to .env.example', async () => {
     await scaffoldProject({
       templateDir: MONOLITH_DIR,
       targetDir,
@@ -1836,7 +1881,8 @@ describe('templates/monolith end-to-end scaffold', () => {
 
     const files = await walkAllFiles(targetDir);
     expect(files).toContain('.gitignore');
-    expect(files).toContain('.env.example');
+    expect(files).toContain('apps/web/.env.example');
+    expect(files).toContain('apps/mobile/.env.example');
     expect(files).not.toContain('_gitignore');
     expect(files).not.toContain('_env.example');
   });

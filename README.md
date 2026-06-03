@@ -14,6 +14,10 @@ Follow the interactive prompts to select a template and package manager. Or skip
 npx create-rell-app my-project --template web --pm pnpm
 ```
 
+> After scaffolding, the generated project drops a ready-to-edit `.env.local`.
+> Run `npm run check-env` inside it to see exactly which Clerk + Supabase keys
+> are still needed (with links to where each one lives) before `npm run dev`.
+
 ## Templates
 
 | | Solo Web | Solo Mobile | Full-Stack Monolith |
@@ -54,7 +58,10 @@ Every generated project includes:
 |---|---|---|
 | `--template`, `-t` | Template to use: `web`, `mobile`, or `monolith` | `--template web` |
 | `--pm` | Package manager: `npm`, `pnpm`, or `yarn` | `--pm pnpm` |
+| `--yes`, `-y` | Skip all prompts; default unspecified values to `web` + `npm` | `-y` |
 | `--no-install` | Skip dependency installation after scaffolding | `--no-install` |
+| `--no-git` | Skip git repository init + initial commit | `--no-git` |
+| `--dry-run` | Show files that would be written without touching disk | `--dry-run` |
 | `--version`, `-v` | Print the CLI version | `-v` |
 | `--help`, `-h` | Show usage information | `--help` |
 

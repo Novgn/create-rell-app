@@ -80,6 +80,7 @@ const SPECIAL_FILENAME_RENAMES: ReadonlyMap<string, string> = new Map([
   ['_gitignore', '.gitignore'],
   ['_npmrc', '.npmrc'],
   ['_env.example', '.env.example'],
+  ['_env.local', '.env.local'],
   ['_husky', '.husky'],
   // `tsconfig.json` files in templates are shipped under `_tsconfig.json`
   // so the IDE's TypeScript server doesn't auto-discover them as standalone
@@ -398,6 +399,48 @@ export function buildSubstitutionVars(resolvedInputs: ResolvedInputs): Record<st
 }
 
 /**
+ * After the template walk, ensure every `.env.example` has a sibling
+ * `.env.local` the framework will actually load. Content is copied verbatim
+ * from the example (single source of truth) so there is no second template
+ * file to keep in sync. Never overwrites an existing `.env.local` (a template
+ * may ship its own via `_env.local`). Dry-run records the path without writing.
+ *
+ * Returns the number of `.env.local` files created (or planned in dry-run).
+ */
+async function materializeEnvLocal(
+  targetDir: string,
+  plannedFiles: string[],
+  dryRun: boolean,
+): Promise<number> {
+  const examples = plannedFiles.filter(
+    (p) => p === '.env.example' || p.endsWith('/.env.example'),
+  );
+  let created = 0;
+  for (const example of examples) {
+    const local = example.replace(/\.env\.example$/, '.env.local');
+    if (plannedFiles.includes(local)) continue; // template already shipped one
+    if (dryRun) {
+      plannedFiles.push(local);
+      created += 1;
+      continue;
+    }
+    const localAbs = platformResolve(targetDir, toPlatform(local));
+    try {
+      await stat(localAbs);
+      continue; // already exists on disk — do not overwrite
+    } catch {
+      /* does not exist — create it */
+    }
+    const exampleAbs = platformResolve(targetDir, toPlatform(example));
+    const content = await readFile(exampleAbs, 'utf8');
+    await writeFile(localAbs, content, 'utf8');
+    plannedFiles.push(local);
+    created += 1;
+  }
+  return created;
+}
+
+/**
  * Copy `templateDir` to `targetDir`, substituting `{{projectName}}` and
  * `{{projectNameKebab}}` tokens in file contents, file names, and directory
  * names. Binary files are copied byte-for-byte. Returns the number of files
@@ -433,5 +476,6 @@ export async function scaffoldProject(options: ScaffoldOptions): Promise<Scaffol
     plannedFiles,
   );
 
-  return { filesWritten, targetDir, plannedFiles };
+  const envLocalCount = await materializeEnvLocal(targetDir, plannedFiles, dryRun);
+  return { filesWritten: filesWritten + envLocalCount, targetDir, plannedFiles };
 }

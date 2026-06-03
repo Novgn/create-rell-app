@@ -55,9 +55,12 @@ describe('TEMPLATES matrix', () => {
     expect(labels).not.toContain('build');
   });
 
-  it('every template requires the four core files at minimum', () => {
-    const core = ['package.json', 'README.md', '.env.example', '.gitignore'];
+  it('every template requires the core files at minimum', () => {
+    // Monolith ships per-app env files instead of a root .env.example
+    const sharedCore = ['package.json', 'README.md', '.gitignore'];
+    const soloCore = [...sharedCore, '.env.example', '.env.local', 'scripts/check-env.mjs'];
     for (const name of ALL_TEMPLATE_NAMES) {
+      const core = name === 'monolith' ? sharedCore : soloCore;
       for (const file of core) {
         expect(TEMPLATES[name].requiredFiles).toContain(file);
       }

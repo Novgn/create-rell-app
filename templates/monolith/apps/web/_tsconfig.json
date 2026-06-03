@@ -5,8 +5,13 @@
     // so the mobile workspace isn't polluted with browser types.
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "plugins": [{ "name": "next" }],
+    // `@<project>/shared` resolves via this path alias rather than relying on a
+    // package manager symlinking the workspace package into node_modules by name
+    // (npm does this implicitly; pnpm and yarn-berry do not). The alias makes
+    // `tsc` and Next resolve the shared package identically under every PM.
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@{{projectNameKebab}}/shared": ["../../packages/shared/index.ts"]
     },
     "incremental": true
   },

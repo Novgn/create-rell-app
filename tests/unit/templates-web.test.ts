@@ -81,6 +81,8 @@ const EXPECTED_WEB_FILES: ReadonlyArray<string> = [
   'components/forms/ProfileForm.tsx',
   // stores/
   'stores/app-store.ts',
+  // scripts/
+  'scripts/check-env.mjs',
 ];
 
 describe('templates/web static file shape (Story 5.1)', () => {
@@ -561,7 +563,8 @@ describe('templates/web end-to-end scaffold (Story 5.1)', () => {
       resolvedInputs: { projectName: 'my-web-app', template: 'web', pm: 'pnpm' },
     });
 
-    expect(result.filesWritten).toBe(EXPECTED_WEB_FILES.length);
+    // +1 for the auto-generated .env.local sibling
+    expect(result.filesWritten).toBe(EXPECTED_WEB_FILES.length + 1);
 
     const files = await walkAllFiles(targetDir);
     const textExtensions = new Set([

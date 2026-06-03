@@ -26,8 +26,8 @@ function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
   if (url === undefined || url === '') {
     throw new Error(
-      'DATABASE_URL is not set. Copy .env.example to .env.local at the monolith ' +
-        'root and fill in the Supabase direct-connection string (see the README).',
+      'DATABASE_URL is not set. ' +
+        'Set DATABASE_URL in apps/web/.env.local (Supabase → Settings → Database connection string).',
     );
   }
   return url;

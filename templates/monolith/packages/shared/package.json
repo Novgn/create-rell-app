@@ -17,6 +17,7 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@types/node": "25.5.2",
     "drizzle-kit": "0.31.10"
   }
 }

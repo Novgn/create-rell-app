@@ -1,0 +1,12 @@
+# {{projectName}} (mobile) — environment variables
+#
+# A ready-to-edit copy is created for you as apps/mobile/.env.local. Expo only
+# exposes vars prefixed with EXPO_PUBLIC_ to the compiled bundle — do NOT put
+# secrets here. Run `{{pmRunCmd}} check-env` (from apps/mobile) to verify.
+
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+
+# Drizzle / direct Postgres connection (only needed to run db:migrate locally)
+# DATABASE_URL=postgresql://postgres:[password]@[project-ref].supabase.co:5432/postgres

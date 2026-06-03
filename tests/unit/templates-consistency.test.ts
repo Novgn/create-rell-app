@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolveDevCommand } from '../../src/banner.ts';
+
 // ============================================================================
 // Cross-template consistency suite (Story 5.3).
 //
@@ -44,6 +46,8 @@ const ROOT_DIRS: TripletLocations = {
 const MONOLITH_WEB_DIR = join(MONOLITH_DIR, 'apps', 'web');
 const MONOLITH_MOBILE_DIR = join(MONOLITH_DIR, 'apps', 'mobile');
 const MONOLITH_SHARED_DIR = join(MONOLITH_DIR, 'packages', 'shared');
+const MONOLITH_WEB_ENV = join(MONOLITH_WEB_DIR, '_env.example');
+const MONOLITH_MOBILE_ENV = join(MONOLITH_MOBILE_DIR, '_env.example');
 
 // Paths to the Drizzle schema file in each template. Monolith keeps it under
 // packages/shared/db/; the solo templates inline it at db/ at the project root.
@@ -94,7 +98,6 @@ const PROFILE_SCHEMA_PATHS: TripletLocations = {
 };
 
 const TEMPLATES = ['monolith', 'web', 'mobile'] as const;
-type TemplateName = (typeof TEMPLATES)[number];
 
 // ===== Drizzle schema + naming =====
 
@@ -198,30 +201,27 @@ describe('cross-template DB naming consistency', () => {
 // ===== Env var naming =====
 
 describe('cross-template environment variable naming', () => {
-  const webTemplates: ReadonlyArray<TemplateName> = ['monolith', 'web'];
-  const mobileTemplates: ReadonlyArray<TemplateName> = ['monolith', 'mobile'];
-
-  it.each(webTemplates)(
-    '_env.example in %s documents NEXT_PUBLIC_CLERK/SUPABASE keys + CLERK_SECRET_KEY',
-    async (tpl) => {
-      const text = await readFile(join(ROOT_DIRS[tpl], '_env.example'), 'utf8');
+  it('web examples document NEXT_PUBLIC_CLERK/SUPABASE keys + CLERK_SECRET_KEY', async () => {
+    for (const p of [join(WEB_DIR, '_env.example'), MONOLITH_WEB_ENV]) {
+      const text = await readFile(p, 'utf8');
       expect(text).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
       expect(text).toContain('CLERK_SECRET_KEY');
       expect(text).toContain('CLERK_BILLING_WEBHOOK_SIGNING_SECRET');
       expect(text).toContain('NEXT_PUBLIC_SUPABASE_URL');
       expect(text).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    },
-  );
+    }
+  });
 
-  it.each(mobileTemplates)(
-    '_env.example in %s documents EXPO_PUBLIC_CLERK/SUPABASE keys',
-    async (tpl) => {
-      const text = await readFile(join(ROOT_DIRS[tpl], '_env.example'), 'utf8');
+  it('mobile examples document EXPO_PUBLIC_CLERK/SUPABASE keys (and no server secrets)', async () => {
+    for (const p of [join(MOBILE_DIR, '_env.example'), MONOLITH_MOBILE_ENV]) {
+      const text = await readFile(p, 'utf8');
       expect(text).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY');
       expect(text).toContain('EXPO_PUBLIC_SUPABASE_URL');
       expect(text).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
-    },
-  );
+      expect(text).not.toContain('NEXT_PUBLIC_');
+      expect(text).not.toContain('CLERK_SECRET_KEY');
+    }
+  });
 
   it('solo web _env.example does NOT leak mobile EXPO_PUBLIC_ keys', async () => {
     const text = await readFile(join(WEB_DIR, '_env.example'), 'utf8');
@@ -474,4 +474,46 @@ describe('cross-template JWT anti-regression', () => {
       expect(offenders).toEqual([]);
     },
   );
+});
+
+describe('cross-template env doctor', () => {
+  const DOCTOR_PATHS = [
+    join(WEB_DIR, 'scripts', 'check-env.mjs'),
+    join(MOBILE_DIR, 'scripts', 'check-env.mjs'),
+    join(MONOLITH_WEB_DIR, 'scripts', 'check-env.mjs'),
+    join(MONOLITH_MOBILE_DIR, 'scripts', 'check-env.mjs'),
+  ];
+
+  it('check-env.mjs is byte-identical across all four app locations', async () => {
+    const [web, ...rest] = await Promise.all(DOCTOR_PATHS.map((p) => readFile(p, 'utf8')));
+    for (const text of rest) expect(text).toBe(web);
+  });
+
+  it('solo web + monolith web wire predev → check-env', async () => {
+    for (const dir of [WEB_DIR, MONOLITH_WEB_DIR]) {
+      const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+      expect(pkg.scripts['check-env']).toBe('node scripts/check-env.mjs');
+      expect(pkg.scripts['predev']).toBe('node scripts/check-env.mjs');
+    }
+  });
+
+  it('solo mobile + monolith mobile wire prestart → check-env', async () => {
+    for (const dir of [MOBILE_DIR, MONOLITH_MOBILE_DIR]) {
+      const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+      expect(pkg.scripts['check-env']).toBe('node scripts/check-env.mjs');
+      expect(pkg.scripts['prestart']).toBe('node scripts/check-env.mjs');
+    }
+  });
+});
+
+describe('resolveDevCommand matches real template scripts', () => {
+  it('web/monolith dev script + mobile start script exist where the map points', async () => {
+    const web = JSON.parse(await readFile(join(WEB_DIR, 'package.json'), 'utf8'));
+    expect(web.scripts['dev']).toBeDefined();
+    const mobile = JSON.parse(await readFile(join(MOBILE_DIR, 'package.json'), 'utf8'));
+    expect(mobile.scripts['start']).toBeDefined();
+    const mono = JSON.parse(await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8'));
+    expect(mono.scripts['dev:web']).toBeDefined();
+    expect(resolveDevCommand('mobile', 'npm')).toBe('npm start');
+  });
 });

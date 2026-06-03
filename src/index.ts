@@ -11,14 +11,14 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { execa } from 'execa';
 import { stat } from 'node:fs/promises';
-import { dirname, posix as posixPath, resolve, resolve as platformResolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import pkg from '../package.json' with { type: 'json' };
+import { buildNextStepsLines } from './banner.ts';
 import {
   cleanupLockFiles,
   defaultProcessRunner,
-  getPackageManagerCommands,
   installDependencies,
   InstallFailedError,
 } from './install.ts';
@@ -66,6 +66,8 @@ export interface CliOptions {
    * disk and skips git init and dependency install.
    */
   dryRun?: boolean;
+  /** Maps to `--yes`/`-y`: skip prompts, default unspecified values. */
+  yes?: boolean;
 }
 
 /**
@@ -85,6 +87,7 @@ export function buildProgram(): Command {
     .argument('<project-name>', 'name of the project directory to create')
     .option('-t, --template <template>', 'template to use (web | mobile | monolith)')
     .option('--pm <packageManager>', 'package manager to use (npm | pnpm | yarn)')
+    .option('-y, --yes', 'skip prompts; default unspecified values to web + npm')
     .option('--no-install', 'skip dependency installation after scaffolding')
     .option('--no-git', 'skip git repository initialization after scaffolding')
     .option(
@@ -98,17 +101,6 @@ export function buildProgram(): Command {
   return program;
 }
 
-/**
- * CLI action handler. In Story 1.2 it gathers any missing inputs from the
- * developer via interactive prompts and echoes the resolved configuration.
- * Stories 1.3–1.5 will replace the body with scaffolding, installation, and
- * strict validation.
- *
- * @param projectName  positional argument from Commander
- * @param options      parsed flags from Commander
- * @param driver       optional prompt driver — tests inject a fake to avoid
- *                     spawning a real TTY prompt
- */
 /**
  * Resolve the absolute path to the bundled `templates/` directory. The CLI
  * is published as an npm package with `templates/` next to `dist/`, so we
@@ -229,9 +221,18 @@ export async function runCli(
 
     const partial = buildPartialInputs(projectName, options.template, options.pm);
 
+    // `--yes`: fill any unspecified values with defaults and skip prompting.
+    const useDefaults = options.yes === true;
+    if (useDefaults) {
+      partial.template ??= 'web';
+      partial.pm ??= 'npm';
+    }
+
     let resolved;
     try {
-      resolved = await gatherInputs(partial, driver, { interactive });
+      resolved = await gatherInputs(partial, driver, {
+        interactive: useDefaults ? false : interactive,
+      });
     } catch (err) {
       if (err instanceof PromptCancelledError) {
         // User hit Ctrl+C during a prompt. Exit cleanly without a trace.
@@ -310,21 +311,19 @@ async function executeScaffoldFlow(opts: ExecuteScaffoldFlowOptions): Promise<vo
   } = opts;
   const templateDir = resolve(templatesDir, resolved.template);
 
-  console.log('[create-rell-app] resolved configuration:');
+  console.log('');
+  console.log(chalk.bold('create-rell-app'));
   console.log('  project name : %s', resolved.projectName);
   console.log('  template     : %s', resolved.template);
   console.log('  package mgr  : %s', resolved.pm);
-  if (dryRun) {
-    console.log('  mode         : %s', 'dry-run (no files written)');
-  }
+  if (dryRun) console.log('  mode         : %s', 'dry-run (no files written)');
 
-  // Story 1.3: scaffold if the template directory is shipped, otherwise
-  // print a friendly placeholder. Real templates land in Epic 2+.
+  // Scaffold the chosen template. In a published build the template
+  // directory is always present; the guard below is defensive.
   const templateExists = await pathExists(templateDir);
   if (!templateExists) {
     console.log(
-      '[create-rell-app] template "%s" is not yet bundled — coming in Epic 2. ' +
-        'Skipping scaffold for now.',
+      '[create-rell-app] template "%s" is not yet bundled in this build — skipping scaffold.',
       resolved.template,
     );
     return;
@@ -405,37 +404,21 @@ async function initGitRepo(targetDir: string, gitRunner: GitRunner): Promise<voi
 }
 
 /**
- * Print a create-next-app-style "next steps" banner after a successful
- * scaffold so the developer knows exactly which commands to run next.
+ * Print the post-scaffold next-steps banner. Composition lives in
+ * `buildNextStepsLines` (pure, tested); this only styles + writes.
  */
 function printNextSteps(resolved: ResolvedInputs, targetDir: string): void {
-  const cmds = getPackageManagerCommands(resolved.pm);
-  // Compute a display-relative cd path when the target sits underneath the
-  // current working directory; otherwise fall back to the absolute path.
-  const absolute = platformResolve(targetDir);
-  const cwd = process.cwd();
-  const relative = absolute.startsWith(cwd)
-    ? './' + posixPath.relative(cwd, absolute).split(/[\\/]/).join('/')
-    : absolute;
-
+  const lines = buildNextStepsLines(resolved, targetDir);
   console.log('');
-  console.log(
-    chalk.green('Success!') + ` Created ${resolved.projectName} at ${targetDir}`,
-  );
-  console.log('');
-  console.log('Inside that directory, you can run:');
-  console.log('');
-  console.log('  ' + chalk.cyan(`${cmds.run} dev`));
-  console.log('    Start the dev server');
-  console.log('');
-  console.log('  ' + chalk.cyan(`${cmds.run} build`));
-  console.log('    Build for production');
-  console.log('');
-  console.log('We suggest you begin by typing:');
-  console.log('');
-  console.log('  ' + chalk.cyan(`cd ${relative}`));
-  console.log('  ' + chalk.cyan(`${cmds.run} dev`));
-  console.log('');
+  for (const line of lines) {
+    if (line.startsWith('Success!')) {
+      console.log(chalk.green('Success!') + line.slice('Success!'.length));
+    } else if (/^\s+(cd |[0-9]\. )/.test(line)) {
+      console.log(chalk.cyan(line));
+    } else {
+      console.log(line);
+    }
+  }
 }
 
 /**

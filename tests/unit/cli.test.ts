@@ -136,6 +136,14 @@ describe('buildProgram', () => {
     expect(help).toContain('--no-git');
     expect(help).toContain('--dry-run');
   });
+
+  it('parses --yes / -y as yes: true', () => {
+    const program = buildProgram();
+    program.exitOverride();
+    program.action(() => {});
+    program.parse(['my-project', '-y'], { from: 'user' });
+    expect(program.opts().yes).toBe(true);
+  });
 });
 
 describe('runCli (action handler)', () => {
@@ -248,6 +256,26 @@ describe('runCli (action handler)', () => {
     expect(output).toContain('mobile');
     expect(output).toContain('yarn');
     expect(selectCallCount.count).toBe(2);
+  });
+
+  it('with --yes and no flags in non-interactive mode, defaults to web + npm (no error)', async () => {
+    const { driver, selectCallCount } = makeRecordingDriver();
+    await runCli(
+      'yes-project',
+      { yes: true },
+      {
+        driver,
+        gatherOptions: { interactive: false },
+        templatesDir: join(legacyTempRoot, 'empty-templates'),
+        targetDirOverride: join(legacyTempRoot, 'out-yes'),
+        installDeps: false,
+      },
+    );
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+    expect(output).toContain('yes-project');
+    expect(output).toContain('web');
+    expect(output).toContain('npm');
+    expect(selectCallCount.count).toBe(0);
   });
 
   it('exits with code 1 when stdin is non-interactive and required flags are missing', async () => {

@@ -36,7 +36,7 @@ export const TEMPLATES = Object.freeze({
         args: Object.freeze(['run', 'typecheck']),
       }),
     ]),
-    requiredFiles: Object.freeze(['package.json', 'README.md', '.env.example', '.gitignore']),
+    requiredFiles: Object.freeze(['package.json', 'README.md', '.env.example', '.gitignore', '.env.local', 'scripts/check-env.mjs']),
   }),
   mobile: Object.freeze({
     steps: Object.freeze([
@@ -48,7 +48,7 @@ export const TEMPLATES = Object.freeze({
         args: Object.freeze(['run', 'typecheck']),
       }),
     ]),
-    requiredFiles: Object.freeze(['package.json', 'README.md', '.env.example', '.gitignore']),
+    requiredFiles: Object.freeze(['package.json', 'README.md', '.env.example', '.gitignore', '.env.local', 'scripts/check-env.mjs']),
   }),
   monolith: Object.freeze({
     steps: Object.freeze([
@@ -64,11 +64,14 @@ export const TEMPLATES = Object.freeze({
     requiredFiles: Object.freeze([
       'package.json',
       'README.md',
-      '.env.example',
       '.gitignore',
       'apps/web/package.json',
       'apps/mobile/package.json',
       'packages/shared/package.json',
+      'apps/web/.env.local',
+      'apps/mobile/.env.local',
+      'apps/web/scripts/check-env.mjs',
+      'apps/mobile/scripts/check-env.mjs',
     ]),
   }),
 });
