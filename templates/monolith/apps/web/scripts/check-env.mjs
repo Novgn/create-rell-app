@@ -1,3 +1,4 @@
+/* global process */
 // Environment doctor — dependency-free pre-flight check for this project.
 //
 // Reads `.env.example` to learn which keys this app needs (uncommented `KEY=`
