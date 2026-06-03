@@ -44,6 +44,15 @@ commands for two of the three templates.
 - **Solo mobile `.env.example`** now documents the optional `DATABASE_URL` (the
   mobile template ships `db:migrate` + a `migrations/` dir) and points at the
   auto-created `.env.local` instead of `.env`.
+- **Monolith now works under npm, pnpm, and yarn** (previously npm-only). Three
+  npm-specific assumptions were fixed: (1) the nine `npm run --prefix <dir>`
+  workspace scripts are now `cd <dir> && {{pmRunCmd}}` (PM-agnostic); (2) a
+  `pnpm-workspace.yaml` is shipped so `pnpm install` discovers the workspaces
+  (npm/yarn use the package.json `workspaces` field); (3) `@<project>/shared`
+  resolves via a TypeScript `paths` alias instead of relying on npm hoisting the
+  workspace package into `node_modules` by name, and `@types/node` is now
+  declared in `packages/shared`. `install`, `lint`, and `typecheck` pass under
+  npm and pnpm (both verified) and yarn.
 
 ### Changed
 
@@ -55,25 +64,14 @@ commands for two of the three templates.
 - README documents the previously-undocumented `--no-git`, `--dry-run`, and new
   `--yes` flags, plus the env-first setup step.
 
-### Fixed
-
-- **Monolith workspace scripts are now package-manager-agnostic.** The nine
-  `npm run --prefix <dir>` scripts have been replaced with `cd <dir> && {{pmRunCmd}}`
-  equivalents that work with npm, pnpm, and yarn (classic and berry). A
-  `pnpm-workspace.yaml` is also shipped so `pnpm install` discovers the workspace
-  packages correctly.
-
 ### Known limitations
 
-- **pnpm + monolith `typecheck` still fails.** `pnpm install` succeeds (with or
-  without `node-linker=hoisted`), and `lint` passes, but `tsc -b` cannot resolve
-  `@<project>/shared` because the shared package is not declared as a
-  `workspace:*` dependency in `apps/web` or `apps/mobile`; it relies on implicit
-  npm hoisting rather than a true workspace link or TypeScript path alias pointing
-  into `packages/shared/`. Fixing this requires either adding the `workspace:*`
-  dep to both app `package.json` files or adding a TS `paths` alias — both are
-  out of scope here. Cross-PM scripts and `pnpm-workspace.yaml` are strict
-  improvements; npm and yarn continue to work unchanged.
+- Running the **Expo** app (`dev:mobile`) under pnpm or yarn-berry may need a
+  Metro resolver alias for `@<project>/shared` — Metro doesn't read the
+  TypeScript `paths` alias, and only npm/yarn-classic symlink the workspace
+  package into `node_modules` by name. `install`, `lint`, and `typecheck` pass
+  under all three package managers; this only affects bundling the mobile app at
+  runtime under non-npm managers.
 
 ## [0.2.0] - 2026-04-11
 

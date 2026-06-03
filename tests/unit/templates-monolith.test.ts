@@ -226,6 +226,24 @@ describe('templates/monolith static file shape', () => {
     expect(text).toContain('apps/*');
     expect(text).toContain('packages/*');
   });
+
+  // The shared package resolves via a TS path alias + an explicit @types/node
+  // declaration rather than npm's implicit workspace hoisting, so `tsc -b`
+  // passes under pnpm/yarn too (CI smoke only exercises npm — this is the guard).
+  it('app tsconfigs alias @<project>/shared into packages/shared', async () => {
+    for (const dir of [WEB_DIR, MOBILE_DIR]) {
+      const text = await readFile(join(dir, '_tsconfig.json'), 'utf8');
+      expect(text, `${dir} missing the shared path alias`).toContain('@{{projectNameKebab}}/shared');
+      expect(text, `${dir} alias should point into packages/shared`).toContain('packages/shared');
+    }
+  });
+
+  it('packages/shared declares @types/node (its tsconfig sets types:["node"])', async () => {
+    const pkg = JSON.parse(await readFile(join(SHARED_DIR, 'package.json'), 'utf8')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.devDependencies['@types/node']).toBeDefined();
+  });
 });
 
 // === Story 2.2 — Clerk + Supabase native 3P auth assertions ===

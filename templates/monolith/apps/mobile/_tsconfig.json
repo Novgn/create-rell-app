@@ -2,8 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    // Resolve `@<project>/shared` via a path alias so it works under every
+    // package manager, not just npm's implicit workspace symlinking. (Metro
+    // still resolves it via node_modules at bundle time — see the monolith
+    // README note on running the Expo app under pnpm/yarn.)
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@{{projectNameKebab}}/shared": ["../../packages/shared/index.ts"]
     },
     "types": ["expo-router/types"]
   },
