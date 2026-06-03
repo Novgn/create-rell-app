@@ -55,12 +55,25 @@ commands for two of the three templates.
 - README documents the previously-undocumented `--no-git`, `--dry-run`, and new
   `--yes` flags, plus the env-first setup step.
 
+### Fixed
+
+- **Monolith workspace scripts are now package-manager-agnostic.** The nine
+  `npm run --prefix <dir>` scripts have been replaced with `cd <dir> && {{pmRunCmd}}`
+  equivalents that work with npm, pnpm, and yarn (classic and berry). A
+  `pnpm-workspace.yaml` is also shipped so `pnpm install` discovers the workspace
+  packages correctly.
+
 ### Known limitations
 
-- The monolith's workspace scripts (`dev:web`, `build:web`, `lint`, and the new
-  `check-env` aggregate) use `npm run --prefix`, which is npm-specific; pnpm/yarn
-  users selecting the monolith template will need to adjust these. Pre-existing;
-  tracked as a follow-up.
+- **pnpm + monolith `typecheck` still fails.** `pnpm install` succeeds (with or
+  without `node-linker=hoisted`), and `lint` passes, but `tsc -b` cannot resolve
+  `@<project>/shared` because the shared package is not declared as a
+  `workspace:*` dependency in `apps/web` or `apps/mobile`; it relies on implicit
+  npm hoisting rather than a true workspace link or TypeScript path alias pointing
+  into `packages/shared/`. Fixing this requires either adding the `workspace:*`
+  dep to both app `package.json` files or adding a TS `paths` alias — both are
+  out of scope here. Cross-PM scripts and `pnpm-workspace.yaml` are strict
+  improvements; npm and yarn continue to work unchanged.
 
 ## [0.2.0] - 2026-04-11
 
