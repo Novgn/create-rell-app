@@ -39,10 +39,13 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..');
 const CLI_ENTRY = join(REPO_ROOT, 'dist', 'cli.js');
 
-// Per-step timeout. 10 minutes is generous but needed for mobile install,
-// which pulls react-native + expo + nativewind + a sizable native dep tree.
-// A hang somewhere in the toolchain should still eventually free the runner.
-const STEP_TIMEOUT_MS = 600_000;
+// Per-step timeout. The mobile/monolith installs pull react-native + expo +
+// nativewind + a sizable native dep tree; GitHub's windows-latest runners
+// routinely need ~11 minutes just for `npm install` of those trees (macOS and
+// ubuntu do the same install in ~1 minute), so 10 minutes was killing
+// legitimate installs on Windows. 20 minutes keeps hang protection while
+// giving the slowest runner ~2x headroom.
+const STEP_TIMEOUT_MS = 1_200_000;
 
 // Turn off Husky's `prepare` hook in scaffolded projects during install.
 // The scaffolded dirs are not git repos, and Husky's prepare would either
