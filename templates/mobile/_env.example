@@ -1,6 +1,6 @@
 # {{projectName}} — environment variables template
 #
-# Copy this file to `.env` at the project root, then fill in the values
+# A ready-to-edit copy is created for you as .env.local. Fill in the values
 # before running the app. Never commit real credentials — the generated
 # .gitignore already excludes `.env*` (except this example file).
 #
