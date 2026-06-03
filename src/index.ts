@@ -102,17 +102,6 @@ export function buildProgram(): Command {
 }
 
 /**
- * CLI action handler. In Story 1.2 it gathers any missing inputs from the
- * developer via interactive prompts and echoes the resolved configuration.
- * Stories 1.3–1.5 will replace the body with scaffolding, installation, and
- * strict validation.
- *
- * @param projectName  positional argument from Commander
- * @param options      parsed flags from Commander
- * @param driver       optional prompt driver — tests inject a fake to avoid
- *                     spawning a real TTY prompt
- */
-/**
  * Resolve the absolute path to the bundled `templates/` directory. The CLI
  * is published as an npm package with `templates/` next to `dist/`, so we
  * compute the path relative to the calling source file rather than the
@@ -329,8 +318,8 @@ async function executeScaffoldFlow(opts: ExecuteScaffoldFlowOptions): Promise<vo
   console.log('  package mgr  : %s', resolved.pm);
   if (dryRun) console.log('  mode         : %s', 'dry-run (no files written)');
 
-  // Story 1.3: scaffold if the template directory is shipped, otherwise
-  // print a friendly placeholder. Real templates land in Epic 2+.
+  // Scaffold the chosen template. In a published build the template
+  // directory is always present; the guard below is defensive.
   const templateExists = await pathExists(templateDir);
   if (!templateExists) {
     console.log(

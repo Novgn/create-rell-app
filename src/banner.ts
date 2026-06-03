@@ -6,7 +6,7 @@
 // tests with bare fixtures). A consistency test asserts this map matches each
 // template's real scripts.
 
-import { posix as posixPath, resolve as platformResolve } from 'node:path';
+import { posix as posixPath, resolve as platformResolve, sep as platformSep } from 'node:path';
 
 import type { PackageManagerName, TemplateName } from './index.ts';
 import { getPackageManagerCommands } from './install.ts';
@@ -44,7 +44,7 @@ export function buildNextStepsLines(
   const cmds = getPackageManagerCommands(resolved.pm);
   const dev = resolveDevCommand(resolved.template, resolved.pm);
   const absolute = platformResolve(targetDir);
-  const relative = absolute.startsWith(cwd)
+  const relative = absolute === cwd || absolute.startsWith(cwd + platformSep)
     ? './' + posixPath.relative(cwd, absolute).split(/[\\/]/).join('/')
     : absolute;
 
