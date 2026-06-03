@@ -1,0 +1,6 @@
+# pnpm reads this file to discover workspace packages. npm and yarn use the
+# "workspaces" field in package.json and ignore this file, so it is harmless
+# for them.
+packages:
+  - 'apps/*'
+  - 'packages/*'

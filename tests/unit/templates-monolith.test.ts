@@ -113,6 +113,7 @@ const EXPECTED_TEMPLATE_FILES: ReadonlyArray<string> = [
   'apps/mobile/scripts/check-env.mjs',
   'apps/web/_env.example',
   'apps/mobile/_env.example',
+  'pnpm-workspace.yaml',
 ];
 
 describe('templates/monolith static file shape', () => {
@@ -208,6 +209,22 @@ describe('templates/monolith static file shape', () => {
     expect(text).toContain('mobile/');
     expect(text).toContain('packages/');
     expect(text).toContain('shared/');
+  });
+
+  it('monolith root scripts are package-manager-agnostic (no npm-only --prefix)', async () => {
+    const pkg = JSON.parse(await readFile(join(MONOLITH_DIR, 'package.json'), 'utf8'));
+    for (const [name, cmd] of Object.entries(pkg.scripts)) {
+      expect(cmd, `${name} must not use npm-only --prefix`).not.toContain('--prefix');
+    }
+    expect(pkg.scripts['dev:web']).toContain('cd apps/web');
+    expect(pkg.scripts['lint']).toContain('cd apps/web');
+    expect(pkg.scripts['db:migrate']).toContain('cd packages/shared');
+  });
+
+  it('monolith ships pnpm-workspace.yaml for pnpm workspace discovery', async () => {
+    const text = await readFile(join(MONOLITH_DIR, 'pnpm-workspace.yaml'), 'utf8');
+    expect(text).toContain('apps/*');
+    expect(text).toContain('packages/*');
   });
 });
 

@@ -7,19 +7,19 @@
     "node": ">=22"
   },
   "scripts": {
-    "check-env": "{{pmRunCmd}} --prefix apps/web check-env && {{pmRunCmd}} --prefix apps/mobile check-env",
-    "dev:web": "{{pmRunCmd}} --prefix apps/web dev",
-    "dev:mobile": "{{pmRunCmd}} --prefix apps/mobile start",
-    "build:web": "{{pmRunCmd}} --prefix apps/web build",
+    "dev:web": "cd apps/web && {{pmRunCmd}} dev",
+    "dev:mobile": "cd apps/mobile && {{pmRunCmd}} start",
+    "build:web": "cd apps/web && {{pmRunCmd}} build",
     "typecheck": "tsc -b apps/web apps/mobile packages/shared --noEmit",
-    "lint": "{{pmRunCmd}} --prefix apps/web lint",
+    "lint": "cd apps/web && {{pmRunCmd}} lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "db:generate": "{{pmRunCmd}} --prefix packages/shared db:generate",
-    "db:migrate": "{{pmRunCmd}} --prefix packages/shared db:migrate",
-    "db:push": "{{pmRunCmd}} --prefix packages/shared db:push",
-    "db:studio": "{{pmRunCmd}} --prefix packages/shared db:studio"
+    "db:generate": "cd packages/shared && {{pmRunCmd}} db:generate",
+    "db:migrate": "cd packages/shared && {{pmRunCmd}} db:migrate",
+    "db:push": "cd packages/shared && {{pmRunCmd}} db:push",
+    "db:studio": "cd packages/shared && {{pmRunCmd}} db:studio",
+    "check-env": "cd apps/web && {{pmRunCmd}} check-env && cd ../mobile && {{pmRunCmd}} check-env"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
